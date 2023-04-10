@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Video Player</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://code.jquery.com/jquery-3.5.0.min.js"> </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jQuery.Marquee/1.5.0/jquery.marquee.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.4.1/jquery.easing.min.js"></script>
+</head>
+
+<body>
+
+  <div class="video-container">
+    <div class="glass-effect"></div>
+    <video playsinline autoplay muted>
+      <source src="vid.mp4" type="video/mp4">
+    </video>
+  </div>
+  
+
+
+  <div class="logo"></div>
+
+  <div class="marquee">আমি বাংলায় কথা বলি। আমি বাংলাদেশে বাস করি। আমি বাঙ্গালি। আমি বাংলাদেশি নাগরিক।</div>
+
+  <script>
+    var vid_paths = [
+      "vid.mp4",
+      "vid1.mp4",
+    ];
+
+    var current_vid = 0;
+
+    $(document).ready(function () {
+      $('.marquee')
+        .marquee({
+          //If you wish to always animate using jQuery
+          allowCss3Support: true
+          , //works when allowCss3Support is set to true - for full list see http://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-timing-function
+          css3easing: 'linear'
+          , //requires jQuery easing plugin. Default is 'linear'
+          easing: 'linear'
+          , //pause time before the next animation turn in milliseconds
+          delayBeforeStart: 1000
+          , //'left', 'right', 'up' or 'down'
+          direction: 'left'
+          , //true or false - should the marquee be duplicated to show an effect of continues flow
+          duplicated: false
+          , //speed in milliseconds of the marquee in milliseconds
+          duration: 15000
+          , //gap in pixels between the tickers
+          gap: 20
+          , //on cycle pause the marquee
+          pauseOnCycle: false
+          , //on hover pause the marquee - using jQuery plugin https://github.com/tobia/Pause
+          pauseOnHover: false
+          , //the marquee is visible initially positioned next to the border towards it will be moving
+          startVisible: false
+        });
+    });
+
+    setTimeout(function () {
+      // unmute the video
+      $('video').prop('muted', false);
+    }, 1000);        
+  </script>
+
+  <script>
+    var $video = $('video').get(0);
+
+    // Add a keydown event listener to the document using jQuery
+    $(document).on('keydown', function (event) {
+      if (event.keyCode === 32) {
+        // If the spacebar key is pressed, play or resume the video
+        if ($video.paused) {
+          // If the video is paused, play it
+          $video.play();
+        } else {
+          // If the video is playing, pause it
+          $video.pause();
+        }
+      }
+    });
+
+    $('video').click(function () {
+      if ($video.paused) {
+        $video.play();
+      } else {
+        $video.pause();
+      }
+    });
+
+    $(document).ready(function () {
+      $($video).on('ended', function () {
+        // Change the video source here
+        current_vid++;
+        if (current_vid >= vid_paths.length) {
+          current_vid = 0;
+        }
+        $video.src = vid_paths[current_vid];
+        $video.load(); // Reload the video element to play the new video
+        $video.play();
+      });
+    });
+
+  </script>
+
+</body>
+
+</html>
