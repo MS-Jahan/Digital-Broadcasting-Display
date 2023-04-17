@@ -1,62 +1,146 @@
-<!DOCTYPE HTML>
+<!DOCTYPE html>
 <html>
+
 <head>
-    <title>Socket-Test</title>
-    <script src="//code.jquery.com/jquery-1.12.4.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js" integrity="sha512-xbQU0+iHqhVt7VIXi6vBJKPh3IQBF5B84sSHdjKiSccyX/1ZI7Vnkt2/8y8uruj63/DVmCxfUNohPNruthTEQA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script type="text/javascript" charset="utf-8">
-        $(document).ready(function() {
-
-            namespace = '/test';
-            var socket = io(namespace);
-
-            socket.on('connect', function() {
-                socket.emit('my_event', {data: 'connected to the SocketServer...'});
-            });
-
-            socket.on('my_response', function(msg, cb) {
-                $('#log').append('<br>' + $('<div/>').text('logs #' + msg.count + ': ' + msg.data).html());
-                if (cb)
-                    cb();
-            });
-            $('form#emit').submit(function(event) {
-                socket.emit('my_event', {data: $('#emit_data').val()});
-                return false;
-            });
-            $('form#broadcast').submit(function(event) {
-                socket.emit('my_broadcast_event', {data: $('#broadcast_data').val()});
-                return false;
-            });
-            $('form#connect').submit(function(event) {
-                socket.connect();
-                return false;
-            });
-            $('form#disconnect').submit(function(event) {
-                socket.emit('disconnect_request');
-                return false;
-            });
-        });
-    </script>
+  <title>Video Player</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://code.jquery.com/jquery-3.5.0.min.js"> </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jQuery.Marquee/1.5.0/jquery.marquee.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.4.1/jquery.easing.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js" integrity="sha512-xbQU0+iHqhVt7VIXi6vBJKPh3IQBF5B84sSHdjKiSccyX/1ZI7Vnkt2/8y8uruj63/DVmCxfUNohPNruthTEQA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
-<body style="background-color:white;">
 
-    <h1 style="background-color:white;">Socket</h1>
-    <form id="emit" method="POST" action='#'>
-        <input type="text" name="emit_data" id="emit_data" placeholder="Message">
-        <input type="submit" value="Send Message">
-    </form>
-    <form id="broadcast" method="POST" action='#'>
-        <input type="text" name="broadcast_data" id="broadcast_data" placeholder="Message">
-        <input type="submit" value="Send Broadcast Message">
-    </form>
+<body>
 
-    <form id="connect" method="POST" action="#">
-        <input type="submit" value="Connect Server">
-    </form>
-    <form id="disconnect" method="POST" action="#">
-        <input type="submit" value="Disconnect Server">
-    </form>
-    <h2 style="background-color:white;">Logs</h2>
-    <div id="log" ></div>
+  <div class="video-container">
+    <div class="glass-effect"></div>
+    <video playsinline autoplay muted>
+      <source src="{{ url_for('videos', filename='vid.mp4') }}" type="video/mp4">
+    </video>
+  </div>
+  
+
+
+  <div class="logo"></div>
+
+  <div class="marquee">আমি বাংলায় কথা বলি। আমি বাংলাদেশে বাস করি। আমি বাঙ্গালি। আমি বাংলাদেশি নাগরিক।</div>
+
+  <script>
+    namespace = '/video';
+    var socket = io(namespace);
+    window.current_vid_id = 0;
+
+    var vid_paths = [
+      "vid.mp4",
+      "vid1.mp4",
+    ];
+
+    var current_vid = 0;
+
+    $(document).ready(function () {
+      $('.marquee')
+        .marquee({
+          //If you wish to always animate using jQuery
+          allowCss3Support: true
+          , //works when allowCss3Support is set to true - for full list see http://www.w3.org/TR/2013/WD-css3-transitions-20131119/#transition-timing-function
+          css3easing: 'linear'
+          , //requires jQuery easing plugin. Default is 'linear'
+          easing: 'linear'
+          , //pause time before the next animation turn in milliseconds
+          delayBeforeStart: 1000
+          , //'left', 'right', 'up' or 'down'
+          direction: 'left'
+          , //true or false - should the marquee be duplicated to show an effect of continues flow
+          duplicated: false
+          , //speed in milliseconds of the marquee in milliseconds
+          duration: 15000
+          , //gap in pixels between the tickers
+          gap: 20
+          , //on cycle pause the marquee
+          pauseOnCycle: false
+          , //on hover pause the marquee - using jQuery plugin https://github.com/tobia/Pause
+          pauseOnHover: false
+          , //the marquee is visible initially positioned next to the border towards it will be moving
+          startVisible: false
+        });
+    });
+
+    setTimeout(function () {
+      // unmute the video
+      $('video').prop('muted', false);
+    }, 1000);        
+  </script>
+
+  <script>
+    var $video = $('video').get(0);
+
+    // Add a keydown event listener to the document using jQuery
+    $(document).on('keydown', function (event) {
+      if (event.keyCode === 32) {
+        // If the spacebar key is pressed, play or resume the video
+        if ($video.paused) {
+          // If the video is paused, play it
+          $video.play();
+        } else {
+          // If the video is playing, pause it
+          $video.pause();
+        }
+      }
+    });
+
+    $('video').click(function () {
+      if ($video.paused) {
+        $video.play();
+      } else {
+        $video.pause();
+      }
+    });
+
+    $(document).ready(function () {
+      $($video).on('ended', function () {
+        // Send next_video event to the server
+        console.log(window.current_vid_id);
+        socket.emit('next_video', {data: 'next_video', current_video_index: window.current_vid_id});
+
+      });
+    });
+
+  </script>
+
+<script type="text/javascript" charset="utf-8">
+  $(document).ready(function() {
+
+      // namespace = '/video';
+      // var socket = io(namespace);
+
+      socket.on('connect', function() {
+          socket.emit('my_event', {data: 'connected to the SocketServer...'});
+      });
+
+      socket.on('next_video', function(msg, cb) {
+          console.log(msg);
+          // Get the data json
+          var video_path = msg['video_name'];
+          var video_id = msg['video_id'];
+          window.current_vid_id = video_id;
+          console.log(window.current_vid_id);
+          // Change the video source here
+          $('video').get(0).src = "/videos/" + video_path;
+          $('video').get(0).load(); // Reload the video element to play the new video
+          $('video').get(0).play();
+          $('video').prop('muted', false);
+          
+          if (cb)
+              cb();
+      });
+
+      $('form#emit').submit(function(event) {
+          socket.emit('my_event', {data: $('#emit_data').val()});
+          return false;
+      });
+  });
+</script>
+
 </body>
+
 </html>
