@@ -15,7 +15,7 @@
   <div class="video-container">
     <div class="glass-effect"></div>
     <video playsinline autoplay muted>
-      <source src="{{ url_for('videos', filename='vid.mp4') }}" type="video/mp4">
+      <source src="" type="video/mp4">
     </video>
   </div>
   
@@ -28,14 +28,10 @@
   <script>
     namespace = '/video';
     var socket = io(namespace);
-    window.current_vid_id = 0;
+    window.current_vid_id = -1;
 
-    var vid_paths = [
-      "vid.mp4",
-      "vid1.mp4",
-    ];
-
-    var current_vid = 0;
+    socket.connect();
+    socket.emit('next_video', {data: 'next_video', current_video_index: window.current_vid_id});
 
     $(document).ready(function () {
       $('.marquee')
@@ -78,7 +74,9 @@
     $(document).on('keydown', function (event) {
       if (event.keyCode === 32) {
         // If the spacebar key is pressed, play or resume the video
-        if ($video.paused) {
+        $isPlaying = $video.currentTime > 0 && !$video.paused && !$video.ended 
+        && $video.readyState > $video.HAVE_CURRENT_DATA;
+        if ($isPlaying) {
           // If the video is paused, play it
           $video.play();
         } else {
@@ -89,7 +87,9 @@
     });
 
     $('video').click(function () {
-      if ($video.paused) {
+      $isPlaying = $video.currentTime > 0 && !$video.paused && !$video.ended 
+      && $video.readyState > $video.HAVE_CURRENT_DATA;
+      if ($isPlaying) {
         $video.play();
       } else {
         $video.pause();
@@ -99,7 +99,6 @@
     $(document).ready(function () {
       $($video).on('ended', function () {
         // Send next_video event to the server
-        console.log(window.current_vid_id);
         socket.emit('next_video', {data: 'next_video', current_video_index: window.current_vid_id});
 
       });
@@ -118,15 +117,15 @@
       });
 
       socket.on('next_video', function(msg, cb) {
-          console.log(msg);
           // Get the data json
           var video_path = msg['video_name'];
           var video_id = msg['video_id'];
           window.current_vid_id = video_id;
-          console.log(window.current_vid_id);
+
           // Change the video source here
           $('video').get(0).src = "/videos/" + video_path;
           $('video').get(0).load(); // Reload the video element to play the new video
+          
           $('video').get(0).play();
           $('video').prop('muted', false);
           
