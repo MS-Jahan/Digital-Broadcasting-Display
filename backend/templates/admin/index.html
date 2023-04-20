@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css" />
+
+    <style>
+        .demo-layout-waterfall .mdl-layout__header-row .mdl-navigation__link:last-of-type {
+            padding-right: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="demo-layout-waterfall mdl-layout mdl-js-layout mdl-layout--fixed-header">
+        <header class="mdl-layout__header mdl-layout__header--waterfall">
+            <!-- Top row, always visible -->
+            <div class="mdl-layout__header-row">
+                <!-- Title -->
+                <span class="mdl-layout-title">IST Broadcasting Display Controller</span>
+                <div class="mdl-layout-spacer"></div>
+                <div
+                    class="mdl-textfield mdl-js-textfield mdl-textfield--expandable mdl-textfield--floating-label mdl-textfield--align-right">
+                    <label class="mdl-button mdl-js-button mdl-button--icon" for="waterfall-exp">
+                        <i class="material-icons">search</i>
+                    </label>
+                    <div class="mdl-textfield__expandable-holder">
+                        <input class="mdl-textfield__input" type="text" name="sample" id="waterfall-exp" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="mdl-layout__tab-bar mdl-js-ripple-effect">
+                <a href="#scroll-tab-1" class="mdl-layout__tab is-active">Basic Controls</a>
+                <a href="#scroll-tab-2" class="mdl-layout__tab">Playlist</a>
+                <a href="#scroll-tab-3" class="mdl-layout__tab">Videos</a>
+                <a href="#scroll-tab-4" class="mdl-layout__tab">Notice</a>
+                <a href="#scroll-tab-5" class="mdl-layout__tab">Tab 5</a>
+                <a href="#scroll-tab-6" class="mdl-layout__tab">Tab 6</a>
+            </div>
+        </header>
+        <div class="mdl-layout__drawer">
+            <span class="mdl-layout-title">IST BDC</span>
+            <nav class="mdl-navigation">
+                <a class="mdl-navigation__link" href="#settings">Settings</a>
+                <a class="mdl-navigation__link" href="#about">About</a>
+            </nav>
+        </div>
+        <main class="mdl-layout__content">
+            <div class="page-content">
+                <section class="mdl-layout__tab-panel is-active" id="scroll-tab-1">
+                    <div class="page-content">
+                        <div class="video-thum-container" style="text-align: center; margin-top: 1%">
+                            <video src="vid.mp4#t=2" width="600px" height="600px"></video>
+                        </div>
+                        <div class="video-info" style="
+                  text-align: center;
+                  margin-top: 1%;
+                  font-size: x-large;
+                  flex-direction: row;
+                  align-items: center;
+                  display: flex;
+                  flex-wrap: nowrap;
+                  align-content: center;
+                  justify-content: center;
+                ">
+                            <span style="font-weight: bold">Now Playing</span>
+                            <i class="material-icons">arrow_forward_ios</i>
+                            <span id="video_name" style="font-weight: bold">video_name</span>
+                        </div>
+                        <div class="controls" style="text-align: center; margin-top: 1%">
+                            <button class="mdl-button mdl-js-button mdl-button--fab mdl-js-ripple-effect"
+                                style="margin: 1%">
+                                <i class="material-icons">skip_previous</i>
+                            </button>
+                            <button class="mdl-button mdl-js-button mdl-button--fab mdl-js-ripple-effect"
+                                style="margin: 1%">
+                                <i class="material-icons">play_arrow</i>
+                            </button>
+                            <button class="mdl-button mdl-js-button mdl-button--fab mdl-js-ripple-effect"
+                                style="margin: 1%">
+                                <i class="material-icons">skip_next</i>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+                <section class="mdl-layout__tab-panel" id="scroll-tab-2">
+                    <div class="page-content"><!-- Your content goes here --></div>
+                </section>
+                <section class="mdl-layout__tab-panel" id="scroll-tab-3">
+                    <div class="page-content"><!-- Your content goes here --></div>
+                </section>
+                <section class="mdl-layout__tab-panel" id="scroll-tab-4">
+                    <div class="page-content"><!-- Your content goes here --></div>
+                </section>
+                <section class="mdl-layout__tab-panel" id="scroll-tab-5">
+                    <div class="page-content"><!-- Your content goes here --></div>
+                </section>
+                <section class="mdl-layout__tab-panel" id="scroll-tab-6">
+                    <div class="page-content"><!-- Your content goes here --></div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script>
+      // on url hash change, console log the hash
+    </script>
+</body>
+<script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+
+</html>

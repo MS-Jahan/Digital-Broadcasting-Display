@@ -76,7 +76,7 @@
         // If the spacebar key is pressed, play or resume the video
         $isPlaying = $video.currentTime > 0 && !$video.paused && !$video.ended 
         && $video.readyState > $video.HAVE_CURRENT_DATA;
-        if ($isPlaying) {
+        if (!$isPlaying) {
           // If the video is paused, play it
           $video.play();
         } else {
@@ -89,7 +89,7 @@
     $('video').click(function () {
       $isPlaying = $video.currentTime > 0 && !$video.paused && !$video.ended 
       && $video.readyState > $video.HAVE_CURRENT_DATA;
-      if ($isPlaying) {
+      if (!$isPlaying) {
         $video.play();
       } else {
         $video.pause();
@@ -123,11 +123,33 @@
           window.current_vid_id = video_id;
 
           // Change the video source here
-          $('video').get(0).src = "/videos/" + video_path;
-          $('video').get(0).load(); // Reload the video element to play the new video
+          $video = $('video').get(0);
+          $video.src = "/videos/" + video_path;
+          // $video.load(); // Reload the video element to play the new video
+          $isPlaying = $video.currentTime > 0 && !$video.paused && !$video.ended 
+          && $video.readyState > $video.HAVE_CURRENT_DATA;
+          if (!$isPlaying) {
+            $('video').prop('muted', false);
+            $video.play();
+          }
+          // $('video').get(0).play();
           
-          $('video').get(0).play();
-          $('video').prop('muted', false);
+          if (cb)
+              cb();
+      });
+
+      socket.on('play_video', function(msg, cb) {
+          console.log('play_video');
+          // Change the video source here
+          $video = $('video').get(0);
+          // $video.load(); // Reload the video element to play the new video
+          $isPlaying = $video.currentTime > 0 && !$video.paused && !$video.ended 
+          && $video.readyState > $video.HAVE_CURRENT_DATA;
+          if (!$isPlaying) {
+            $('video').prop('muted', false);
+            $video.play();
+          }
+          // $('video').get(0).play();
           
           if (cb)
               cb();

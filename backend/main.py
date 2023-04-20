@@ -20,6 +20,10 @@ thread_lock = Lock()
 def index():
     return render_template('index.html', async_mode=socket_.async_mode)
 
+@app.route('/admin')
+def admin():
+    return render_template('admin/index.html', async_mode=socket_.async_mode)
+
 @app.route('/videos/<path:filename>')
 def videos(filename):
     return send_from_directory(app.config['VIDEO_FOLDER'], filename)
@@ -58,6 +62,14 @@ def test_message(message):
     try:
         next_video = get_next_video(current_video_index)
         emit('next_video', next_video)
+    except Exception as e:
+        raise e
+    
+# on connect
+@socket_.on('connect', namespace='/video')
+def send_play_command():
+    try:
+        emit('play_video', {'data': 'play_video'})
     except Exception as e:
         raise e
 
