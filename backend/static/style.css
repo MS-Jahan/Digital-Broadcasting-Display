@@ -31,7 +31,7 @@ video {
   right: 30px;
   width: 100px;
   height: 100px;
-  background-image: url(logo.png);
+  background-image: url(ist_logo.png);
   background-repeat: no-repeat;
   background-size: contain;
   animation: rotate 6s infinite;

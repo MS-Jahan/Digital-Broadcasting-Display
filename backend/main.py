@@ -74,4 +74,4 @@ def send_play_command():
         raise e
 
 if __name__ == '__main__':
-    socket_.run(app, debug=True)
+    socket_.run(app, port=8082, debug=True)

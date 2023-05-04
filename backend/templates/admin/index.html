@@ -9,10 +9,28 @@
 
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
     <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css" />
+    <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
 
     <style>
         .demo-layout-waterfall .mdl-layout__header-row .mdl-navigation__link:last-of-type {
             padding-right: 0;
+        }
+
+        .transition-c {
+            transition: transform 0.5s;
+        }
+
+        .mdl-list__item:hover {
+            transform: scale(1.02);
+            background-color: rgb(197, 195, 199);
+        }
+
+        .mdl-button-floating {
+            position: fixed;
+            bottom: 20px;
+            /* adjust the value to change the distance from the bottom */
+            right: 20px;
+            /* adjust the value to change the distance from the right */
         }
     </style>
 </head>
@@ -61,16 +79,16 @@
                             <video src="vid.mp4#t=2" width="600px" height="600px"></video>
                         </div>
                         <div class="video-info" style="
-                  text-align: center;
-                  margin-top: 1%;
-                  font-size: x-large;
-                  flex-direction: row;
-                  align-items: center;
-                  display: flex;
-                  flex-wrap: nowrap;
-                  align-content: center;
-                  justify-content: center;
-                ">
+                            text-align: center;
+                            margin-top: 1%;
+                            font-size: x-large;
+                            flex-direction: row;
+                            align-items: center;
+                            display: flex;
+                            flex-wrap: nowrap;
+                            align-content: center;
+                            justify-content: center;
+                        ">
                             <span style="font-weight: bold">Now Playing</span>
                             <i class="material-icons">arrow_forward_ios</i>
                             <span id="video_name" style="font-weight: bold">video_name</span>
@@ -92,13 +110,159 @@
                     </div>
                 </section>
                 <section class="mdl-layout__tab-panel" id="scroll-tab-2">
-                    <div class="page-content"><!-- Your content goes here --></div>
+                    <div class="page-content" style="padding-inline: 1%;">
+                        <ul class="demo-list-control mdl-list">
+                            <li class="transition-c mdl-list__item" data-video-id="1" id="playlist-item-1">
+                                <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;">
+                                    <i class="material-icons  mdl-list__item-avatar">person</i>
+                                    Bryan Cranston 1
+                                </span>
+                                <span onclick="move_up(this)" class="mdl-list__item-secondary-action"
+                                    style="margin-inline: 10px;">
+                                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                                        <i class="material-icons">arrow_upward</i>
+                                    </label>
+                                </span>
+                                <span onclick="move_down(this)" class="mdl-list__item-secondary-action"
+                                    style="margin-inline: 10px;">
+                                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                                        <i class="material-icons">arrow_downward</i>
+                                    </label>
+                                </span>
+                                <span onclick="del(this)" class="mdl-list__item-secondary-action"
+                                    style="margin-inline: 10px;">
+                                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                                        <i class="material-icons">close</i>
+                                    </label>
+                                </span>
+                            </li>
+                            <li class="transition-c mdl-list__item" data-video-id="1" id="playlist-item-2">
+                                <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;">
+                                    <i class="material-icons  mdl-list__item-avatar">person</i>
+                                    Bryan Cranston 2
+                                </span>
+                                <span onclick="move_up(this)" class="mdl-list__item-secondary-action"
+                                    style="margin-inline: 10px;">
+                                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                                        <i class="material-icons">arrow_upward</i>
+                                    </label>
+                                </span>
+                                <span onclick="move_down(this)" class="mdl-list__item-secondary-action"
+                                    style="margin-inline: 10px;">
+                                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                                        <i class="material-icons">arrow_downward</i>
+                                    </label>
+                                </span>
+                                <span onclick="del(this)" class="mdl-list__item-secondary-action"
+                                    style="margin-inline: 10px;">
+                                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                                        <i class="material-icons">close</i>
+                                    </label>
+                                </span>
+                            </li>
+                            <li class="transition-c mdl-list__item" data-video-id="1" id="playlist-item-3">
+                                <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;">
+                                    <i class="material-icons  mdl-list__item-avatar">person</i>
+                                    Bryan Cranston 3
+                                </span>
+                                <span onclick="move_up(this)" class="mdl-list__item-secondary-action"
+                                    style="margin-inline: 10px;">
+                                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                                        <i class="material-icons">arrow_upward</i>
+                                    </label>
+                                </span>
+                                <span onclick="move_down(this)" class="mdl-list__item-secondary-action"
+                                    style="margin-inline: 10px;">
+                                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                                        <i class="material-icons">arrow_downward</i>
+                                    </label>
+                                </span>
+                                <span onclick="del(this)" class="mdl-list__item-secondary-action"
+                                    style="margin-inline: 10px;">
+                                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                                        <i class="material-icons">close</i>
+                                    </label>
+                                </span>
+                            </li>
+                        </ul>
+                    </div>
                 </section>
                 <section class="mdl-layout__tab-panel" id="scroll-tab-3">
-                    <div class="page-content"><!-- Your content goes here --></div>
+                    <div class="page-content" style="padding-inline: 1%;">
+                        <button class="mdl-button-floating mdl-button mdl-js-button mdl-button--fab">
+                            <i class="material-icons">upload_file</i>
+                        </button>
+
+                        <ul class="demo-list-control mdl-list">
+                            <li class="transition-c mdl-list__item" data-video-id="1" id="playlist-item-1">
+                                <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;">
+                                    <i class="material-icons  mdl-list__item-avatar">person</i>
+                                    Bryan Cranston 1
+                                </span>
+                                <span onclick="play(this)" class="mdl-list__item-secondary-action"
+                                    style="margin-inline: 10px;">
+                                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                                        <i class="material-icons">play_arrow</i>
+                                    </label>
+                                </span>
+                                <span onclick="del(this)" class="mdl-list__item-secondary-action"
+                                    style="margin-inline: 10px;">
+                                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                                        <i class="material-icons">close</i>
+                                    </label>
+                                </span>
+                            </li>
+                            <li class="transition-c mdl-list__item" data-video-id="1" id="playlist-item-2">
+                                <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;">
+                                    <i class="material-icons  mdl-list__item-avatar">person</i>
+                                    Bryan Cranston 2
+                                </span>
+                                <span onclick="play(this)" class="mdl-list__item-secondary-action"
+                                    style="margin-inline: 10px;">
+                                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                                        <i class="material-icons">play_arrow</i>
+                                    </label>
+                                </span>
+                                <span onclick="del(this)" class="mdl-list__item-secondary-action"
+                                    style="margin-inline: 10px;">
+                                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                                        <i class="material-icons">close</i>
+                                    </label>
+                                </span>
+                            </li>
+                            <li class="transition-c mdl-list__item" data-video-id="1" id="playlist-item-3">
+                                <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;">
+                                    <i class="material-icons  mdl-list__item-avatar">person</i>
+                                    Bryan Cranston 3
+                                </span>
+                                <span onclick="play(this)" class="mdl-list__item-secondary-action"
+                                    style="margin-inline: 10px;">
+                                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                                        <i class="material-icons">play_arrow</i>
+                                    </label>
+                                </span>
+                                <span onclick="del(this)" class="mdl-list__item-secondary-action"
+                                    style="margin-inline: 10px;">
+                                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                                        <i class="material-icons">close</i>
+                                    </label>
+                                </span>
+                            </li>
+                        </ul>
+                    </div>
                 </section>
                 <section class="mdl-layout__tab-panel" id="scroll-tab-4">
-                    <div class="page-content"><!-- Your content goes here --></div>
+                    <div class="page-content" style="padding-inline: 4%;">
+                        <h5>Subtitle</h5>
+                        <!-- Floating Multiline Textfield -->
+                        <form action="#">
+                            <div class="mdl-textfield mdl-js-textfield">
+                                <textarea class="mdl-textfield__input" type="text" rows="6" id="sample5"></textarea>
+                                <label class="mdl-textfield__label" for="sample5">Write Subtitle Here...</label>
+                            </div>
+                        </form>
+
+                    </div>
                 </section>
                 <section class="mdl-layout__tab-panel" id="scroll-tab-5">
                     <div class="page-content"><!-- Your content goes here --></div>
@@ -110,10 +274,7 @@
         </main>
     </div>
 
-    <script>
-      // on url hash change, console log the hash
-    </script>
+    <script src="{{ url_for('static', filename='playlist.js') }}"></script>
 </body>
-<script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
 
 </html>
