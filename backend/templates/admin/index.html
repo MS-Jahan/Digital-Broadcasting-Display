@@ -33,6 +33,8 @@
             /* adjust the value to change the distance from the right */
         }
     </style>
+    <script src="{{ url_for('static', filename='vars.js') }}"></script>
+    <script src="{{ url_for('static', filename='playlist.js') }}"></script>
 </head>
 
 <body>
@@ -57,7 +59,7 @@
             <!-- Tabs -->
             <div class="mdl-layout__tab-bar mdl-js-ripple-effect">
                 <a href="#scroll-tab-1" class="mdl-layout__tab is-active">Basic Controls</a>
-                <a href="#scroll-tab-2" class="mdl-layout__tab">Playlist</a>
+                <a href="#scroll-tab-2" onclick="get_all_video_list()" class="mdl-layout__tab">Playlist</a>
                 <a href="#scroll-tab-3" class="mdl-layout__tab">Videos</a>
                 <a href="#scroll-tab-4" class="mdl-layout__tab">Notice</a>
                 <a href="#scroll-tab-5" class="mdl-layout__tab">Tab 5</a>
@@ -76,7 +78,7 @@
                 <section class="mdl-layout__tab-panel is-active" id="scroll-tab-1">
                     <div class="page-content">
                         <div class="video-thum-container" style="text-align: center; margin-top: 1%">
-                            <video src="vid.mp4#t=2" width="600px" height="600px"></video>
+                            <video src="/videos/vid.mp4#t=2" width="600px" height="600px"></video>
                         </div>
                         <div class="video-info" style="
                             text-align: center;
@@ -111,8 +113,8 @@
                 </section>
                 <section class="mdl-layout__tab-panel" id="scroll-tab-2">
                     <div class="page-content" style="padding-inline: 1%;">
-                        <ul class="demo-list-control mdl-list">
-                            <li class="transition-c mdl-list__item" data-video-id="1" id="playlist-item-1">
+                        <ul id="playlist-ul" class="demo-list-control mdl-list">
+                            <!-- <li class="transition-c mdl-list__item" data-video-id="1" id="playlist-item-1">
                                 <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;">
                                     <i class="material-icons  mdl-list__item-avatar">person</i>
                                     Bryan Cranston 1
@@ -159,7 +161,7 @@
                                         <i class="material-icons">close</i>
                                     </label>
                                 </span>
-                            </li>
+                            </li> -->
                             <li class="transition-c mdl-list__item" data-video-id="1" id="playlist-item-3">
                                 <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;">
                                     <i class="material-icons  mdl-list__item-avatar">person</i>
@@ -273,8 +275,6 @@
             </div>
         </main>
     </div>
-
-    <script src="{{ url_for('static', filename='playlist.js') }}"></script>
 </body>
 
 </html>

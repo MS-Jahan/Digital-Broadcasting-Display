@@ -1,4 +1,4 @@
-from flask import Flask, render_template, session, copy_current_request_context, send_from_directory
+from flask import Flask, render_template, session, copy_current_request_context, send_from_directory, request
 from flask_socketio import SocketIO, emit, disconnect
 
 from threading import Lock
@@ -24,10 +24,36 @@ def index():
 def admin():
     return render_template('admin/index.html', async_mode=socket_.async_mode)
 
+@app.route('/all_videos')
+def all_videos():
+    return get_video_list()
+
 @app.route('/videos/<path:filename>')
 def videos(filename):
     return send_from_directory(app.config['VIDEO_FOLDER'], filename)
 
+@app.route('/playlist_index_swap', methods=['GET'])
+def pi_swap():
+    one = int(request.args.get('one'))
+    another = int(request.args.get('another'))
+    return playlist_index_swap(one, another)
+
+@app.route('/make_video_unlisted', methods=['GET'])
+def make_video_unlisted():
+    try:
+        video_id = int(request.args.get('id'))
+        with open(LOCAL_STORE_PATH, 'r') as f:
+            local_store = json.load(f)
+
+        local_store['unlisted_videos'].append(local_store["videos"][video_id])
+        local_store["videos"].pop(video_id)
+        
+        with open(LOCAL_STORE_PATH, 'w') as f:
+            json.dump(local_store, f, indent=4)
+        
+        return {"message": "success"}
+    except Exception as e:
+        return {"message": str(e)}
 
 @socket_.on('my_event', namespace='/test')
 def test_message(message):
