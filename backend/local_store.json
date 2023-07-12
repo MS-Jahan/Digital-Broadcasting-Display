@@ -1,9 +1,8 @@
 {
     "videos": [
-        "vid1.mp4",
-        "vid.mp4"
+        "vid1.mp4"
     ],
     "unlisted_videos": [
-        "asasd.mp4"
+        "vid.mp4"
     ]
 }

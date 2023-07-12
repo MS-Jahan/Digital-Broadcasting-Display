@@ -53,7 +53,42 @@ def make_video_unlisted():
         
         return {"message": "success"}
     except Exception as e:
-        return {"message": str(e)}
+        return {"message": str(e)}, 400
+
+@app.route('/make_video_listed', methods=['GET'])
+def make_video_listed():
+    try:
+        video_id = int(request.args.get('id'))
+        with open(LOCAL_STORE_PATH, 'r') as f:
+            local_store = json.load(f)
+
+        local_store["videos"].append(local_store["unlisted_videos"][video_id])
+        local_store["unlisted_videos"].pop(video_id)
+
+        with open(LOCAL_STORE_PATH, 'w') as f:
+            json.dump(local_store, f, indent=4)
+
+        return {"message": "success"}
+    except Exception as e:
+        return {"message": str(e)}, 400
+
+@app.route('/delete_video', methods=['GET'])
+def delete_video():
+    try:
+        video_id = int(request.args.get('id'))
+        with open(LOCAL_STORE_PATH, 'r') as f:
+            local_store = json.load(f)
+
+        os.remove(os.path.join(VIDEOS_ROOT, local_store["videos"][video_id]))
+
+        local_store["videos"].pop(video_id)
+
+        with open(LOCAL_STORE_PATH, 'w') as f:
+            json.dump(local_store, f, indent=4)
+
+        return {"message": "success"}
+    except Exception as e:
+        return {"message": str(e)}, 400
 
 @socket_.on('my_event', namespace='/test')
 def test_message(message):
