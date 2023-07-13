@@ -1,41 +1,33 @@
 import os
-from flask import Flask, render_template, session, copy_current_request_context, send_from_directory, request, redirect, url_for
+import sqlite3
+from flask import Flask, render_template, session, copy_current_request_context, send_from_directory, request, redirect, url_for, redirect, url_for
 from flask_socketio import SocketIO, emit, disconnect
 from threading import Lock
-from pony.orm import *
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from eventlet import wsgi
+import eventlet
+import traceback
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    return response
+
 app.config['SECRET_KEY'] = 'secret!'
 app.config['VIDEO_FOLDER'] = 'videos'
 socket_ = SocketIO(app)
 thread = None
 thread_lock = Lock()
 
-# Configure Pony ORM
-db = Database()
-
-
-class Video(db.Entity):
-    id = PrimaryKey(int, auto=True)
-    filename = Required(str)
-    status = Required(str)
-
-
-class UnlistedVideo(db.Entity):
-    id = PrimaryKey(int, auto=True)
-    filename = Required(str)
-    status = Required(str)
-
-
-class User(UserMixin, db.Entity):
-    id = PrimaryKey(int, auto=True)
-    username = Required(str)
-    password = Required(str)
-
-
-db.bind(provider='sqlite', filename='database.sqlite', create_db=True)
-db.generate_mapping(create_tables=True)
+# Create the SQLite database connection
+conn = sqlite3.connect('database.sqlite')
+conn.execute('PRAGMA foreign_keys = ON')  # Enable foreign key support
 
 # Configure Flask-Login
 login_manager = LoginManager()
@@ -44,41 +36,89 @@ login_manager.init_app(app)
 
 @login_manager.user_loader
 def load_user(user_id):
-    with db_session:
-        return User.get(id=user_id)
+    cursor = conn.execute('SELECT * FROM user WHERE id = ?', (user_id,))
+    row = cursor.fetchone()
+    if row:
+        return User(*row)
+    return None
+
+
+class Video:
+    def __init__(self, id, filename, status):
+        self.id = id
+        self.filename = filename
+        self.status = status
+
+
+class UnlistedVideo:
+    def __init__(self, id, filename, status):
+        self.id = id
+        self.filename = filename
+        self.status = status
+
+
+class User(UserMixin):
+    def __init__(self, id, username, password):
+        self.id = id
+        self.username = username
+        self.password = password
 
 
 def startup_tasks():
     if not os.path.exists(app.config['VIDEO_FOLDER']):
         os.mkdir(app.config['VIDEO_FOLDER'])
 
+    # Create the videos table if it doesn't exist
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS video (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            filename TEXT NOT NULL,
+            status TEXT NOT NULL
+        )
+    ''')
+
     # Populate the videos table
-    with db_session:
+    with conn:
+        cursor = conn.execute('SELECT filename FROM video')
+        existing_videos = set(row[0] for row in cursor.fetchall())
+
         videos = os.listdir(app.config['VIDEO_FOLDER'])
-        existing_videos = [v.filename for v in Video.select()]
         for video in videos:
             if video not in existing_videos:
-                Video(filename=video, status='listed')
+                print("[+] Adding video: " + video)
+                conn.execute('INSERT INTO video (filename, status) VALUES (?, ?)', (video, 'listed'))
 
 
 @app.route('/')
 def index():
+    if not current_user.is_authenticated:
+        return redirect(url_for('login'))
     return render_template('index.html')
 
 
 @app.route('/admin')
-@login_required
+# @login_required
 def admin():
+    if not current_user.is_authenticated:
+        return redirect(url_for('login'))
     return render_template('admin/index.html')
 
 
 @app.route('/all_videos')
 @login_required
 def all_videos():
-    with db_session:
-        videos = select(v for v in Video)[:]
+    cursor = conn.execute('SELECT * FROM video')
+    videos = [Video(*row) for row in cursor.fetchall()]
 
-    return {"videos": videos}
+    videos_arr = []
+    unlisted_videos_arr = []
+    for video in videos:
+        if video.status == 'unlisted':
+            unlisted_videos_arr.append(video.filename)
+        else:
+            videos_arr.append(video.filename)
+
+    return {"videos": videos_arr, "unlisted_videos": unlisted_videos_arr}
 
 
 @app.route('/videos/<path:filename>')
@@ -93,8 +133,10 @@ def pi_swap():
     one = int(request.args.get('one'))
     another = int(request.args.get('another'))
 
-    with db_session:
-        videos = select(v for v in Video).order_by(Video.id).limit(2, skip=one).for_update()
+    with conn:
+        cursor = conn.execute('SELECT * FROM video ORDER BY id LIMIT 2 OFFSET ?', (one,))
+        videos = [Video(*row) for row in cursor.fetchall()]
+
         if len(videos) != 2:
             return {"message": "Invalid indices"}
 
@@ -109,14 +151,17 @@ def make_video_unlisted():
     try:
         video_id = int(request.args.get('id'))
 
-        with db_session:
-            video = Video.get(id=video_id)
+        with conn:
+            cursor = conn.execute('SELECT * FROM video WHERE id = ?', (video_id,))
+            row = cursor.fetchone()
 
-            if video is None:
+            if row is None:
                 return {"message": "Invalid video ID"}
 
-            UnlistedVideo(filename=video.filename, status='unlisted')
-            video.delete()
+            unlisted_video = UnlistedVideo(*row)
+            conn.execute('DELETE FROM video WHERE id = ?', (video_id,))
+            conn.execute('INSERT INTO unlisted_video (id, filename, status) VALUES (?, ?, ?)',
+                         (unlisted_video.id, unlisted_video.filename, unlisted_video.status))
 
         return {"message": "success"}
     except Exception as e:
@@ -129,14 +174,17 @@ def make_video_listed():
     try:
         video_id = int(request.args.get('id'))
 
-        with db_session:
-            video = UnlistedVideo.get(id=video_id)
+        with conn:
+            cursor = conn.execute('SELECT * FROM unlisted_video WHERE id = ?', (video_id,))
+            row = cursor.fetchone()
 
-            if video is None:
+            if row is None:
                 return {"message": "Invalid video ID"}
 
-            Video(filename=video.filename, status='listed')
-            video.delete()
+            video = Video(*row)
+            conn.execute('DELETE FROM unlisted_video WHERE id = ?', (video_id,))
+            conn.execute('INSERT INTO video (id, filename, status) VALUES (?, ?, ?)',
+                         (video.id, video.filename, video.status))
 
         return {"message": "success"}
     except Exception as e:
@@ -149,15 +197,17 @@ def delete_video():
     try:
         video_id = int(request.args.get('id'))
 
-        with db_session:
-            video = Video.get(id=video_id)
+        with conn:
+            cursor = conn.execute('SELECT * FROM video WHERE id = ?', (video_id,))
+            row = cursor.fetchone()
 
-            if video is None:
+            if row is None:
                 return {"message": "Invalid video ID"}
 
+            video = Video(*row)
             video_path = os.path.join(app.config['VIDEO_FOLDER'], video.filename)
             os.remove(video_path)
-            video.delete()
+            conn.execute('DELETE FROM video WHERE id = ?', (video_id,))
 
         return {"message": "success"}
     except Exception as e:
@@ -196,8 +246,10 @@ def test_message(message):
     current_video_index = message['current_video_index']
 
     try:
-        with db_session:
-            videos = select(v for v in Video).order_by(Video.id)
+        with conn:
+            cursor = conn.execute('SELECT * FROM video ORDER BY id')
+            videos = [Video(*row) for row in cursor.fetchall()]
+
             if len(videos) == 0:
                 raise Exception("No videos in the local store")
 
@@ -208,7 +260,7 @@ def test_message(message):
             next_video = videos[current_video_index]
             emit('next_video', {'video_id': next_video.id, 'video_name': next_video.filename})
     except Exception as e:
-        raise e
+        print(traceback.format_exc())
 
 
 @socket_.on('connect', namespace='/video')
@@ -226,14 +278,15 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
 
-        with db_session:
-            user = User.get(username=username)
+        cursor = conn.execute('SELECT * FROM user WHERE username = ?', (username,))
+        row = cursor.fetchone()
 
-            if user is None or user.password != password:
-                return redirect(url_for('login'))
+        if row is None or row[2] != password:
+            return redirect(url_for('login'))
 
-            login_user(user)
-            return redirect(url_for('admin'))
+        user = User(*row)
+        login_user(user)
+        return redirect(url_for('admin'))
 
     return render_template('login.html')
 
@@ -247,4 +300,5 @@ def logout():
 
 if __name__ == '__main__':
     startup_tasks()
-    socket_.run(app, port=8082, debug=True)
+    # socket_.run(app, port=8082, debug=True)
+    wsgi.server(eventlet.listen(('', 8082)), app)
