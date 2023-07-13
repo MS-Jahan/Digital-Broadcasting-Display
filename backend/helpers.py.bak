@@ -1,0 +1,100 @@
+import os
+import json
+import sqlite3
+
+from vars import *
+
+def startup_tasks():
+    if not os.path.exists(VIDEOS_ROOT):
+        print("VIDEOS_ROOT does not exist")
+        os.mkdir(VIDEOS_ROOT)
+
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+
+    c.execute('''CREATE TABLE IF NOT EXISTS videos
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 filename TEXT,
+                 status TEXT)''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS unlisted_videos
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 filename TEXT,
+                 status TEXT)''')
+
+    videos = os.listdir(VIDEOS_ROOT)
+
+    for video in videos:
+        c.execute("INSERT OR IGNORE INTO videos (filename, status) VALUES (?, ?)",
+                  (video, 'listed'))
+
+    conn.commit()
+    conn.close()
+
+def get_next_video(current_video_index):
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+
+    c.execute("SELECT id, filename FROM videos")
+    videos = c.fetchall()
+
+    if len(videos) == 0:
+        raise Exception("No videos in the local store")
+
+    current_video_index += 1
+    if current_video_index >= len(videos):
+        current_video_index = 0
+
+    video_id, video_name = videos[current_video_index]
+
+    conn.close()
+
+    return {"video_id": video_id, "video_name": video_name}
+
+    
+def get_video_list():
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+
+    c.execute("SELECT * FROM videos")
+    videos = c.fetchall()
+
+    if len(videos) == 0:
+        raise Exception("No videos in the local store")
+
+    conn.close()
+
+    video_list = {"videos": [], "unlisted_videos": []}
+
+    for video in videos:
+        video_id, filename, status = video
+        if status == "listed":
+            video_list["videos"].append(filename)
+        elif status == "unlisted":
+            video_list["unlisted_videos"].append(filename)
+
+    return video_list
+
+
+def playlist_index_swap(one, another):
+    with open(LOCAL_STORE_PATH, 'r') as f:
+        local_store = json.load(f)
+    
+    if 'videos' not in local_store:
+        raise Exception("No videos in the local store")
+    
+    current_video_index = one
+    another_video_index = another
+    
+    if current_video_index >= len(local_store['videos']):
+        current_video_index = 0
+    
+    if another_video_index >= len(local_store['videos']):
+        another_video_index = 0
+    
+    local_store['videos'][current_video_index], local_store['videos'][another_video_index] = local_store['videos'][another_video_index], local_store['videos'][current_video_index]
+
+    with open(LOCAL_STORE_PATH, 'w') as f:
+        json.dump(local_store, f, indent=4)
+    
+    return {"message": "success"}
