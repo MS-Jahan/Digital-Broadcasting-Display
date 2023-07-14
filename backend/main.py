@@ -8,9 +8,10 @@ from eventlet import wsgi
 import eventlet
 import traceback
 from flask_cors import CORS
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, supports_credentials=True)
 
 @app.after_request
 def add_cors_headers(response):
@@ -33,6 +34,15 @@ conn.execute('PRAGMA foreign_keys = ON')  # Enable foreign key support
 login_manager = LoginManager()
 login_manager.init_app(app)
 
+
+UPLOAD_FOLDER = 'videos'
+ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -63,6 +73,10 @@ class User(UserMixin):
         self.username = username
         self.password = password
 
+class Subtitle:
+    def __init__(self, content):
+        self.content = content
+
 
 def startup_tasks():
     if not os.path.exists(app.config['VIDEO_FOLDER']):
@@ -76,6 +90,16 @@ def startup_tasks():
             status TEXT NOT NULL
         )
     ''')
+
+    # Create the subtitle table if it doesn't exist
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS subtitle (
+            content TEXT NOT NULL
+        )
+    ''')
+
+
+    subtitle_entry = Subtitle('')
 
     # Populate the videos table
     with conn:
@@ -125,6 +149,46 @@ def all_videos():
 @login_required
 def videos(filename):
     return send_from_directory(app.config['VIDEO_FOLDER'], filename)
+
+
+@app.route('/subtitle', methods=['POST'])
+@login_required
+def update_subtitle():
+    # get content from request json
+    content = request.json['content']
+
+    print(content)
+
+    with conn:
+        cursor = conn.execute('SELECT * FROM subtitle')
+        row = cursor.fetchone()
+
+        if row is None:
+            # Insert new subtitle entry
+            conn.execute('INSERT INTO subtitle (content) VALUES (?)', (content,))
+        else:
+            # Update existing subtitle entry
+            conn.execute('UPDATE subtitle SET content = ?', (content,))
+
+    # socket emit subtitle_updated
+    socket_.emit('subtitle_updated', {'content': content}, namespace='/video')
+
+    return {"message": "success"}
+
+
+@app.route('/subtitle', methods=['GET'])
+@login_required
+def get_subtitle():
+    with conn:
+        cursor = conn.execute('SELECT * FROM subtitle')
+        row = cursor.fetchone()
+
+        if row is None:
+            return {"content": ''}
+
+        subtitle = Subtitle(row[0])
+        return {"content": subtitle.content}
+
 
 
 @app.route('/playlist_index_swap', methods=['GET'])
@@ -213,6 +277,25 @@ def delete_video():
     except Exception as e:
         return {"message": str(e)}, 400
 
+@app.route('/upload_video', methods=['POST'])
+@login_required
+def upload_video():
+    # check if the post request has the file part
+    if 'video' not in request.files:
+        return {"message": "No file part"}, 400
+
+    file = request.files['video']
+    # if user does not select file, browser also submit an empty part without filename
+    if file.filename == '':
+        return {"message": "No selected file"}, 400
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        conn.execute('INSERT INTO video (filename, status) VALUES (?, ?)', (filename, 'listed'))
+        return {"message": "success"}
+    else:
+        return {"message": "Invalid file format"}, 400
 
 @socket_.on('my_event', namespace='/test')
 @login_required
@@ -254,10 +337,10 @@ def test_message(message):
                 raise Exception("No videos in the local store")
 
             current_video_index += 1
-            if current_video_index >= len(videos):
+            if current_video_index > len(videos):
                 current_video_index = 0
 
-            next_video = videos[current_video_index]
+            next_video = videos[current_video_index-1]
             emit('next_video', {'video_id': next_video.id, 'video_name': next_video.filename})
     except Exception as e:
         print(traceback.format_exc())

@@ -99,23 +99,23 @@ function deleteVideo(videoId) {
     fetch(`/delete_video?id=${videoId}`, {
         method: 'GET'
     })
-    .then(response => response.json())
-    .then(data => {
-        // Handle the server response
-        Swal.fire(
-            'Deleted!',
-            data.message,
-            'success'
-        );
-    })
-    .catch(error => {
-        console.log(error);
-        Swal.fire(
-            'Error',
-            'An error occurred while deleting the video.',
-            'error'
-        );
-    });
+        .then(response => response.json())
+        .then(data => {
+            // Handle the server response
+            Swal.fire(
+                'Deleted!',
+                data.message,
+                'success'
+            );
+        })
+        .catch(error => {
+            console.log(error);
+            Swal.fire(
+                'Error',
+                'An error occurred while deleting the video.',
+                'error'
+            );
+        });
 }
 
 
@@ -130,7 +130,9 @@ function play(e) {
 }
 
 function get_videos(target) {
-    fetch(SERVER_URL + "/all_videos")
+    fetch(SERVER_URL + "/all_videos", {
+        method: "GET"
+    })
         .then(response => response.json())
         .then(data => {
             // iterate through data['videos']
@@ -140,6 +142,27 @@ function get_videos(target) {
             if (target === 'videos-ul') {
                 data['videos'].forEach(function (video_name, index) {
                     ul_innerhtml += `<li video-status="listed" class="transition-c mdl-list__item" data-video-id="${index + 1}" id="playlist-item-3">
+            <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;">
+                <i class="material-icons  mdl-list__item-avatar">person</i>
+                ${video_name}
+            </span>
+            <span class="mdl-list__item-secondary-action"
+                style="margin-inline: 10px;">
+                <label class="mdl-button mdl-js-button mdl-button--icon">
+                    <i class="material-icons">play_arrow</i>
+                </label>
+            </span>
+            <span onclick="del(this)" class="mdl-list__item-secondary-action"
+                style="margin-inline: 10px;">
+                <label class="mdl-button mdl-js-button mdl-button--icon">
+                    <i class="material-icons">close</i>
+                </label>
+            </span>
+        </li>`;
+                });
+
+                data['unlisted_videos'].forEach(function (video_name, index) {
+                    ul_innerhtml += `<li video-status="unlisted" class="transition-c mdl-list__item" data-video-id="${index + 1}" id="playlist-item-3">
                 <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;">
                     <i class="material-icons  mdl-list__item-avatar">person</i>
                     ${video_name}
@@ -158,78 +181,57 @@ function get_videos(target) {
                 </span>
             </li>`;
                 });
-
-                data['unlisted_videos'].forEach(function (video_name, index) {
-                    ul_innerhtml += `<li video-status="unlisted" class="transition-c mdl-list__item" data-video-id="${index + 1}" id="playlist-item-3">
-                    <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;">
-                        <i class="material-icons  mdl-list__item-avatar">person</i>
-                        ${video_name}
-                    </span>
-                    <span class="mdl-list__item-secondary-action"
-                        style="margin-inline: 10px;">
-                        <label class="mdl-button mdl-js-button mdl-button--icon">
-                            <i class="material-icons">play_arrow</i>
-                        </label>
-                    </span>
-                    <span onclick="del(this)" class="mdl-list__item-secondary-action"
-                        style="margin-inline: 10px;">
-                        <label class="mdl-button mdl-js-button mdl-button--icon">
-                            <i class="material-icons">close</i>
-                        </label>
-                    </span>
-                </li>`;
-                });
             } else if (target === 'playlist-ul') {
                 data['videos'].forEach(function (video_name, index) {
                     ul_innerhtml += `<li video-status="listed" class="transition-c mdl-list__item" data-video-id="${index + 1}" id="playlist-item-3">
-                    <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;">
-                        <i class="material-icons  mdl-list__item-avatar">person</i>
-                        ${video_name}
-                    </span>
-                    <span onclick="move_up(this)" class="mdl-list__item-secondary-action"
-                        style="margin-inline: 10px;">
-                        <label class="mdl-button mdl-js-button mdl-button--icon">
-                            <i class="material-icons">arrow_upward</i>
-                        </label>
-                    </span>
-                    <span onclick="move_down(this)" class="mdl-list__item-secondary-action"
-                        style="margin-inline: 10px;">
-                        <label class="mdl-button mdl-js-button mdl-button--icon">
-                            <i class="material-icons">arrow_downward</i>
-                        </label>
-                    </span>
-                    <span onclick="make_video_unlisted(this)" class="mdl-list__item-secondary-action"
-                        style="margin-inline: 10px;">
-                        <label class="mdl-button mdl-js-button mdl-button--icon">
-                            <i class="material-icons">visibility_off</i>
-                        </label>
-                    </span>
-                </li>`;
+                <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;">
+                    <i class="material-icons  mdl-list__item-avatar">person</i>
+                    ${video_name}
+                </span>
+                <span onclick="move_up(this)" class="mdl-list__item-secondary-action"
+                    style="margin-inline: 10px;">
+                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                        <i class="material-icons">arrow_upward</i>
+                    </label>
+                </span>
+                <span onclick="move_down(this)" class="mdl-list__item-secondary-action"
+                    style="margin-inline: 10px;">
+                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                        <i class="material-icons">arrow_downward</i>
+                    </label>
+                </span>
+                <span onclick="make_video_unlisted(this)" class="mdl-list__item-secondary-action"
+                    style="margin-inline: 10px;">
+                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                        <i class="material-icons">visibility_off</i>
+                    </label>
+                </span>
+            </li>`;
                 });
 
                 data['unlisted_videos'].forEach(function (video_name, index) {
                     ul_innerhtml += `<li video-status="unlisted" class="transition-c mdl-list__item" data-video-id="${index + 1}" id="playlist-item-3">
-                    <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;filter: blur(3px);">
-                        <i class="material-icons  mdl-list__item-avatar">person</i>
-                        ${video_name}
-                    </span>
-                    <span style="filter: blur(3px);margin-inline: 10px;" class="mdl-list__item-secondary-action">
-                        <label class="mdl-button mdl-js-button mdl-button--icon">
-                            <i class="material-icons">arrow_upward</i>
-                        </label>
-                    </span>
-                    <span style="filter: blur(3px);margin-inline: 10px;" class="mdl-list__item-secondary-action">
-                        <label class="mdl-button mdl-js-button mdl-button--icon">
-                            <i class="material-icons">arrow_downward</i>
-                        </label>
-                    </span>
-                    <span onclick="make_video_listed(this)" class="mdl-list__item-secondary-action"
-                        style="margin-inline: 10px;">
-                        <label class="mdl-button mdl-js-button mdl-button--icon">
-                            <i class="material-icons">visibility</i>
-                        </label>
-                    </span>
-                </li>`;
+                <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;filter: blur(3px);">
+                    <i class="material-icons  mdl-list__item-avatar">person</i>
+                    ${video_name}
+                </span>
+                <span style="filter: blur(3px);margin-inline: 10px;" class="mdl-list__item-secondary-action">
+                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                        <i class="material-icons">arrow_upward</i>
+                    </label>
+                </span>
+                <span style="filter: blur(3px);margin-inline: 10px;" class="mdl-list__item-secondary-action">
+                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                        <i class="material-icons">arrow_downward</i>
+                    </label>
+                </span>
+                <span onclick="make_video_listed(this)" class="mdl-list__item-secondary-action"
+                    style="margin-inline: 10px;">
+                    <label class="mdl-button mdl-js-button mdl-button--icon">
+                        <i class="material-icons">visibility</i>
+                    </label>
+                </span>
+            </li>`;
                 });
             }
 

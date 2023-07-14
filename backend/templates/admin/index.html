@@ -36,6 +36,7 @@
     </style>
     <script src="{{ url_for('static', filename='vars.js') }}"></script>
     <script src="{{ url_for('static', filename='playlist.js') }}"></script>
+    <script src="{{ url_for('static', filename='subtitle.js') }}"></script>
 </head>
 
 <body>
@@ -62,9 +63,9 @@
                 <a href="#scroll-tab-1" class="mdl-layout__tab is-active">Basic Controls</a>
                 <a href="#scroll-tab-2" onclick="get_videos('playlist-ul')" class="mdl-layout__tab">Playlist</a>
                 <a href="#scroll-tab-3" onclick="get_videos('videos-ul')" class="mdl-layout__tab">Videos</a>
-                <a href="#scroll-tab-4" class="mdl-layout__tab">Notice</a>
-                <a href="#scroll-tab-5" class="mdl-layout__tab">Tab 5</a>
-                <a href="#scroll-tab-6" class="mdl-layout__tab">Tab 6</a>
+                <a href="#scroll-tab-4" onclick="get_subtitle()" class="mdl-layout__tab">Notice</a>
+                <!-- <a href="#scroll-tab-5" class="mdl-layout__tab">Tab 5</a>
+                <a href="#scroll-tab-6" class="mdl-layout__tab">Tab 6</a> -->
             </div>
         </header>
         <div class="mdl-layout__drawer">
@@ -192,9 +193,10 @@
                 </section>
                 <section class="mdl-layout__tab-panel" id="scroll-tab-3">
                     <div class="page-content" style="padding-inline: 1%;">
-                        <button class="mdl-button-floating mdl-button mdl-js-button mdl-button--fab">
-                            <i class="material-icons">upload_file</i>
-                        </button>
+                      <input type="file" id="video-file-input" style="display: none;">
+                      <button class="mdl-button mdl-button--fab" id="upload-button">
+                        <i class="material-icons">upload_file</i>
+                      </button>
 
                         <ul id="videos-ul" class="demo-list-control mdl-list">
                             <li class="transition-c mdl-list__item" data-video-id="1" id="playlist-item-1">
@@ -260,11 +262,13 @@
                         <!-- Floating Multiline Textfield -->
                         <form action="#">
                             <div class="mdl-textfield mdl-js-textfield">
-                                <textarea class="mdl-textfield__input" type="text" rows="6" id="sample5"></textarea>
+                                <textarea id="subtitle_input" class="mdl-textfield__input" type="text" rows="6" id="sample5"></textarea>
                                 <label class="mdl-textfield__label" for="sample5">Write Subtitle Here...</label>
                             </div>
                         </form>
-
+                        <button onclick="post_subtitle()" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored">
+                            Save
+                        </button>
                     </div>
                 </section>
                 <section class="mdl-layout__tab-panel" id="scroll-tab-5">
@@ -277,5 +281,32 @@
         </main>
     </div>
 </body>
+<script>
+    document.getElementById('upload-button').addEventListener('click', function () {
+    document.getElementById('video-file-input').click();
+});
+
+document.getElementById('video-file-input').addEventListener('change', function () {
+    var file = this.files[0];
+    if (file) {
+        var formData = new FormData();
+        formData.append('video', file);
+
+        fetch(SERVER_URL + '/upload_video', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                // Handle the response from the server
+                console.log(data);
+            })
+            .catch(error => {
+                // Handle any errors that occurred during the fetch request
+                console.error(error);
+            });
+    }
+});
+</script>
 
 </html>
