@@ -107,10 +107,18 @@ def startup_tasks():
         existing_videos = set(row[0] for row in cursor.fetchall())
 
         videos = os.listdir(app.config['VIDEO_FOLDER'])
+
+        # delete any non-existing videos
+        for video in existing_videos:
+            if video not in videos:
+                print("[+] Deleting video: " + video)
+                conn.execute('DELETE FROM video WHERE filename = ?', (video,))
+
         for video in videos:
             if video not in existing_videos:
                 print("[+] Adding video: " + video)
                 conn.execute('INSERT INTO video (filename, status) VALUES (?, ?)', (video, 'listed'))
+        
 
 
 @app.route('/')
@@ -333,15 +341,18 @@ def test_message(message):
             cursor = conn.execute('SELECT * FROM video ORDER BY id')
             videos = [Video(*row) for row in cursor.fetchall()]
 
+            for video in videos:
+                print(video.filename)
+
             if len(videos) == 0:
                 raise Exception("No videos in the local store")
 
             current_video_index += 1
-            if current_video_index > len(videos):
+            if current_video_index >= len(videos):
                 current_video_index = 0
 
-            next_video = videos[current_video_index-1]
-            emit('next_video', {'video_id': next_video.id, 'video_name': next_video.filename})
+            next_video = videos[current_video_index]
+            emit('next_video', {'video_id': current_video_index, 'video_name': next_video.filename})
     except Exception as e:
         print(traceback.format_exc())
 
