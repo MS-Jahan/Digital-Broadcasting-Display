@@ -160,8 +160,8 @@
           cb();
       });
 
-      socket.on('play_video', function (msg, cb) {
-        console.log('play_video');
+      socket.on('play_pause', function (msg, cb) {
+        console.log('play_pause');
         // Change the video source here
         $video = $('video').get(0);
         // $video.load(); // Reload the video element to play the new video
@@ -170,7 +170,10 @@
         if (!$isPlaying) {
           $('video').prop('muted', false);
           $video.play();
+        } else {
+          $video.pause();
         }
+
         // $('video').get(0).play();
 
         if (cb)

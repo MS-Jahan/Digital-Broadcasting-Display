@@ -10,8 +10,17 @@ import traceback
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
+UPLOAD_FOLDER = 'videos'
+ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov'}
+
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
+
+socket_ = SocketIO(app)
+thread = None
+thread_lock = Lock()
+
+CURRENTLY_PLAYING_VIDEO_NAME = None
 
 @app.after_request
 def add_cors_headers(response):
@@ -22,9 +31,6 @@ def add_cors_headers(response):
 
 app.config['SECRET_KEY'] = 'secret!'
 app.config['VIDEO_FOLDER'] = 'videos'
-socket_ = SocketIO(app)
-thread = None
-thread_lock = Lock()
 
 # Create the SQLite database connection
 conn = sqlite3.connect('database.sqlite')
@@ -33,10 +39,6 @@ conn.execute('PRAGMA foreign_keys = ON')  # Enable foreign key support
 # Configure Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
-
-
-UPLOAD_FOLDER = 'videos'
-ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov'}
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -58,14 +60,6 @@ class Video:
         self.id = id
         self.filename = filename
         self.status = status
-
-
-class UnlistedVideo:
-    def __init__(self, id, filename, status):
-        self.id = id
-        self.filename = filename
-        self.status = status
-
 
 class User(UserMixin):
     def __init__(self, id, username, password):
@@ -146,9 +140,9 @@ def all_videos():
     unlisted_videos_arr = []
     for video in videos:
         if video.status == 'unlisted':
-            unlisted_videos_arr.append(video.filename)
+            unlisted_videos_arr.append({video.id: video.filename})
         else:
-            videos_arr.append(video.filename)
+            videos_arr.append({video.id: video.filename})
 
     return {"videos": videos_arr, "unlisted_videos": unlisted_videos_arr}
 
@@ -198,7 +192,6 @@ def get_subtitle():
         return {"content": subtitle.content}
 
 
-
 @app.route('/playlist_index_swap', methods=['GET'])
 @login_required
 def pi_swap():
@@ -206,13 +199,24 @@ def pi_swap():
     another = int(request.args.get('another'))
 
     with conn:
-        cursor = conn.execute('SELECT * FROM video ORDER BY id LIMIT 2 OFFSET ?', (one,))
-        videos = [Video(*row) for row in cursor.fetchall()]
+        # get one from database
+        one_tuple = list(conn.execute('SELECT * FROM video where id=?', (one,)).fetchone())
+        another_tuple = list(conn.execute('SELECT * FROM video where id=?', (another,)).fetchone())
+        
+        # delete those entries
+        conn.execute('DELETE FROM video WHERE id=?', (one,))
+        conn.execute('DELETE FROM video WHERE id=?', (another,))
 
-        if len(videos) != 2:
-            return {"message": "Invalid indices"}
+        # swap id in tuples
+        tmp = one_tuple[0]
+        one_tuple[0] = another_tuple[0]
+        another_tuple[0] = tmp
 
-        videos[0].id, videos[1].id = videos[1].id, videos[0].id
+        # insert into database
+        conn.execute('INSERT INTO video (id, filename, status) VALUES (?, ?, ?)', (one_tuple[0], one_tuple[1], one_tuple[2]))
+        conn.execute('INSERT INTO video (id, filename, status) VALUES (?, ?, ?)', (another_tuple[0], another_tuple[1], another_tuple[2]))
+        
+        conn.commit()
 
     return {"message": "success"}
 
@@ -230,10 +234,7 @@ def make_video_unlisted():
             if row is None:
                 return {"message": "Invalid video ID"}
 
-            unlisted_video = UnlistedVideo(*row)
-            conn.execute('DELETE FROM video WHERE id = ?', (video_id,))
-            conn.execute('INSERT INTO unlisted_video (id, filename, status) VALUES (?, ?, ?)',
-                         (unlisted_video.id, unlisted_video.filename, unlisted_video.status))
+            conn.execute('UPDATE video SET status = ? WHERE id = ?', ('unlisted', video_id))
 
         return {"message": "success"}
     except Exception as e:
@@ -247,16 +248,13 @@ def make_video_listed():
         video_id = int(request.args.get('id'))
 
         with conn:
-            cursor = conn.execute('SELECT * FROM unlisted_video WHERE id = ?', (video_id,))
+            cursor = conn.execute('SELECT * FROM video WHERE id = ?', (video_id,))
             row = cursor.fetchone()
 
             if row is None:
                 return {"message": "Invalid video ID"}
 
-            video = Video(*row)
-            conn.execute('DELETE FROM unlisted_video WHERE id = ?', (video_id,))
-            conn.execute('INSERT INTO video (id, filename, status) VALUES (?, ?, ?)',
-                         (video.id, video.filename, video.status))
+            conn.execute('UPDATE video SET status = ? WHERE id = ?', ('listed', video_id))
 
         return {"message": "success"}
     except Exception as e:
@@ -305,6 +303,11 @@ def upload_video():
     else:
         return {"message": "Invalid file format"}, 400
 
+@app.route('/current_video', methods=['GET'])
+@login_required
+def current_video():
+    return {"video": CURRENTLY_PLAYING_VIDEO_NAME}
+
 @socket_.on('my_event', namespace='/test')
 @login_required
 def test_message(message):
@@ -333,6 +336,7 @@ def disconnect_request():
 @socket_.on('next_video', namespace='/video')
 @login_required
 def test_message(message):
+    global CURRENTLY_PLAYING_VIDEO_NAME
     session['receive_count'] = session.get('receive_count', 0) + 1
     current_video_index = message['current_video_index']
 
@@ -347,21 +351,69 @@ def test_message(message):
             if len(videos) == 0:
                 raise Exception("No videos in the local store")
 
-            current_video_index += 1
-            if current_video_index >= len(videos):
-                current_video_index = 0
+            traversing = -1
+            while traversing < len(videos):
+                traversing += 1
+                current_video_index += 1
+                if current_video_index >= len(videos) or current_video_index < 0:
+                    current_video_index = 0
 
-            next_video = videos[current_video_index]
-            emit('next_video', {'video_id': current_video_index, 'video_name': next_video.filename})
+                next_video = videos[current_video_index]
+                if next_video.status != 'unlisted':
+                    emit('next_video', {'video_id': current_video_index, 'video_name': next_video.filename})
+                    socket_.emit('next_video', {'video_id': current_video_index, 'video_name': next_video.filename}, namespace='/admin-video')
+                    CURRENTLY_PLAYING_VIDEO_NAME = next_video.filename
+                    break
+
     except Exception as e:
         print(traceback.format_exc())
 
+
+@socket_.on('next_video', namespace='/admin-video')
+@login_required
+def admin_play_video(message):
+    global CURRENTLY_PLAYING_VIDEO_NAME
+    session['receive_count'] = session.get('receive_count', 0) + 1
+    current_video_index = message['current_video_index']
+
+    try:
+        with conn:
+            cursor = conn.execute('SELECT * FROM video ORDER BY id')
+            videos = [Video(*row) for row in cursor.fetchall()]
+
+            for video in videos:
+                print(video.filename)
+
+            if len(videos) == 0:
+                raise Exception("No videos in the local store")
+
+            traversing = -1
+            while traversing < len(videos):
+                traversing += 1
+                current_video_index += 1
+                if current_video_index >= len(videos) or current_video_index < 0:
+                    current_video_index = 0
+
+                next_video = videos[current_video_index]
+                
+                emit('next_video', {'video_id': current_video_index, 'video_name': next_video.filename})
+                socket_.emit('next_video', {'video_id': current_video_index, 'video_name': next_video.filename}, namespace='/video')
+                CURRENTLY_PLAYING_VIDEO_NAME = next_video.filename
+                break
+
+    except Exception as e:
+        print(traceback.format_exc())
+
+@socket_.on("play_pause", namespace='/admin-video')
+@login_required
+def play_pause():
+    socket_.emit('play_pause', namespace='/video')
 
 @socket_.on('connect', namespace='/video')
 @login_required
 def send_play_command():
     try:
-        emit('play_video', {'data': 'play_video'})
+        emit('play_pause', {'data': 'play_pause'})
     except Exception as e:
         raise e
 
@@ -396,3 +448,4 @@ if __name__ == '__main__':
     startup_tasks()
     # socket_.run(app, port=8082, debug=True)
     wsgi.server(eventlet.listen(('', 8082)), app)
+
