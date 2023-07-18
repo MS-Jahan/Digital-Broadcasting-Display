@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from flask import Flask, render_template, session, copy_current_request_context, send_from_directory, request, redirect, url_for, redirect, url_for
+from flask import Flask, render_template, session, copy_current_request_context, send_from_directory, request, redirect, url_for, redirect, url_for, session
 from flask_socketio import SocketIO, emit, disconnect
 from threading import Lock
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user, logout_user
@@ -9,6 +9,7 @@ import eventlet
 import traceback
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
+from datetime import timedelta
 
 UPLOAD_FOLDER = 'videos'
 ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov'}
@@ -21,6 +22,11 @@ thread = None
 thread_lock = Lock()
 
 CURRENTLY_PLAYING_VIDEO_NAME = None
+
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
+    app.permanent_session_lifetime = timedelta(days=1461)
 
 @app.after_request
 def add_cors_headers(response):
