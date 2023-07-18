@@ -3,7 +3,7 @@ import sqlite3
 from flask import Flask, render_template, session, copy_current_request_context, send_from_directory, request, redirect, url_for, redirect, url_for
 from flask_socketio import SocketIO, emit, disconnect
 from threading import Lock
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user, logout_user
 from eventlet import wsgi
 import eventlet
 import traceback
@@ -118,15 +118,14 @@ def startup_tasks():
 @app.route('/')
 def index():
     if not current_user.is_authenticated:
-        return redirect(url_for('login'))
+        return redirect(url_for('login') + "?next=" + url_for('index'))
     return render_template('index.html')
-
 
 @app.route('/admin')
 # @login_required
 def admin():
     if not current_user.is_authenticated:
-        return redirect(url_for('login'))
+        return redirect(url_for('login') + "?next=" + url_for('admin'))
     return render_template('admin/index.html')
 
 
@@ -432,6 +431,13 @@ def login():
 
         user = User(*row)
         login_user(user)
+        
+        # check if the url contains a next parameter
+        next = request.args.get('next')
+        print("next:", next)
+        if next != None and next != '':
+            return redirect(next)
+
         return redirect(url_for('admin'))
 
     return render_template('login.html')

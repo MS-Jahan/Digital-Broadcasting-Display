@@ -1,7 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Login</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -22,6 +26,7 @@
             border-radius: 5px;
             padding: 20px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 300px;
         }
         
         .login-form h2 {
@@ -40,10 +45,10 @@
         }
         
         .login-form .form-group input {
-            width: auto;
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
+            width: 280px;
         }
         
         .login-form .form-group .submit-button {
@@ -82,4 +87,11 @@
         </div>
     </div>
 </body>
+<script>
+    // Check if the URL parameter "message" exists and its value contains "login-error"
+    if (document.referrer.includes('/login')) {
+        // Show SweetAlert
+        new swal("Login Error", "Invalid username or password!", "error");
+    }
+</script>
 </html>
