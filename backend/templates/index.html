@@ -31,6 +31,13 @@
 
   <div id="subtitle" class="marquee">আমি বাংলায় কথা বলি। আমি বাংলাদেশে বাস করি। আমি বাঙ্গালি। আমি বাংলাদেশি নাগরিক।
   </div>
+  <div id="current-time-container"
+  style="position: fixed; bottom: 60px; right: 0; text-align: right; padding: 20px; background-color: rgba(0, 0, 0, 0.5); color: white; width: 153px;padding-right: 30px;">
+    <div id="current-date" style="font-size: 24px;"></div>
+    <div id="current-dayOfWeek" style="font-size: 18px;"></div>
+    <div id="current-time" style="font-size: 30px;"></div>
+  </div>
+
 
   <script>
     $(document).ready(function () {
@@ -225,7 +232,7 @@
   </script>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       var elem = document.documentElement;
 
       // Check if fullscreen mode is supported
@@ -241,6 +248,66 @@
     });
   </script>
 
+  <script>
+    function convertToBanglaDigits(number) {
+      const englishDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+      const banglaDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+
+      // Convert each digit to Bangla digit
+      const banglaNumber = number.replace(/\d/g, digit => banglaDigits[englishDigits.indexOf(digit)]);
+
+      return banglaNumber;
+    }
+
+    function convertToBanglaDayOfWeek(dayOfWeek) {
+      var banglaDaysOfWeek = [
+        'রবিবার',
+        'সোমবার',
+        'মঙ্গলবার',
+        'বুধবার',
+        'বৃহস্পতিবার',
+        'শুক্রবার',
+        'শনিবার'
+      ];
+      return banglaDaysOfWeek[dayOfWeek];
+    }
+
+    function getCurrentDateTime() {
+      var date = new Date();
+      var day = convertToBanglaDigits(date.getDate().toString().padStart(2, '0'));
+      var month = convertToBanglaDigits((date.getMonth() + 1).toString().padStart(2, '0'));
+      var year = convertToBanglaDigits(date.getFullYear().toString());
+      var dayOfWeek = convertToBanglaDayOfWeek(date.getDay());
+      var hours = date.getHours();
+      var period = hours >= 12 ? 'পূর্বাহ্ণ' : 'অপরাহ্ণ';
+      hours = hours % 12 || 12;
+      hours = convertToBanglaDigits(hours.toString().padStart(2, '0'));
+      var minutes = convertToBanglaDigits(date.getMinutes().toString().padStart(2, '0'));
+      var seconds = convertToBanglaDigits(date.getSeconds().toString().padStart(2, '0'));
+
+      var currentDate = day + '/' + month + '/' + year;
+      var currentDayOfWeek = dayOfWeek;
+      var currentTime = hours + ':' + minutes + ':' + seconds;
+
+      return { date: currentDate, dayOfWeek: currentDayOfWeek, time: currentTime };
+    }
+
+    function updateTime() {
+      var dateTime = getCurrentDateTime();
+
+      var dateElement = document.getElementById('current-date');
+      dateElement.textContent = dateTime.date;
+
+      var dayOfWeekElement = document.getElementById('current-dayOfWeek');
+      dayOfWeekElement.textContent = dateTime.dayOfWeek;
+
+      var timeElement = document.getElementById('current-time');
+      timeElement.textContent = dateTime.time;
+    }
+
+    // Update the time every second
+    setInterval(updateTime, 1000);
+  </script>
 
 </body>
 
