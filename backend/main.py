@@ -98,6 +98,22 @@ def startup_tasks():
         )
     ''')
 
+    # Create the user table if it doesn't exist
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS user (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            password TEXT NOT NULL
+        )
+    ''')
+
+    # create a default user if it doesn't exist
+    with conn:
+        cursor = conn.execute('SELECT * FROM user WHERE username = ?', ('admin',))
+        row = cursor.fetchone()
+
+        if row is None:
+            conn.execute('INSERT INTO user (username, password) VALUES (?, ?)', ('admin', 'admin'))
 
     subtitle_entry = Subtitle('')
 
