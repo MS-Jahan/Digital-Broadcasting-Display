@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Stream Client</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        
+        video {
+            width: 100%;
+            max-width: 400px;
+            height: auto;
+            border: 2px solid #333;
+            border-radius: 10px;
+        }
+        
+        .controls {
+            margin: 20px 0;
+        }
+        
+        button {
+            padding: 15px 20px;
+            margin: 10px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .start { background: #4CAF50; color: white; }
+        .stop { background: #f44336; color: white; }
+        .switch { background: #2196F3; color: white; }
+        
+        .status {
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .connected { background: #4CAF50; }
+        .disconnected { background: #f44336; }
+        .streaming { background: #FF9800; }
+        
+        canvas { display: none; }
+    </style>
+</head>
+<body>
+    <h1>📱 Mobile Stream Client</h1>
+    
+    <div class="status disconnected" id="status">
+        Disconnected
+    </div>
+    
+    <video id="videoElement" autoplay muted playsinline></video>
+    <canvas id="canvas"></canvas>
+    
+    <div class="controls">
+        <button class="start" onclick="startStream('camera')">📹 Start Camera</button>
+        <button class="start" onclick="startStream('screen')">🖥️ Start Screen Share</button>
+        <button class="stop" onclick="stopStream()">⏹️ Stop Stream</button>
+    </div>
+    
+    <div class="controls">
+        <button class="switch" onclick="switchCamera()">🔄 Switch Camera</button>
+        <button class="switch" onclick="toggleMirror()">🪞 Toggle Mirror</button>
+    </div>
+    
+    <p><small>Connect your phone to the same network as the display system.</small></p>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
+    <script>
+        let socket;
+        let stream;
+        let videoElement;
+        let canvas;
+        let ctx;
+        let isStreaming = false;
+        let currentStreamType = null;
+        let facingMode = 'user'; // 'user' or 'environment'
+        let isMirrored = true;
+        
+        // Get server URL from current location
+        const SERVER_URL = window.location.origin;
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            videoElement = document.getElementById('videoElement');
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            
+            // Apply mirror effect by default for front camera
+            videoElement.style.transform = isMirrored ? 'scaleX(-1)' : 'scaleX(1)';
+            
+            connectToServer();
+        });
+        
+        function updateStatus(message, className) {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = message;
+            statusElement.className = 'status ' + className;
+        }
+        
+        function connectToServer() {
+            socket = io(SERVER_URL + '/stream');
+            
+            socket.on('connect', function() {
+                updateStatus('Connected to server', 'connected');
+                socket.emit('join_stream');
+            });
+            
+            socket.on('disconnect', function() {
+                updateStatus('Disconnected from server', 'disconnected');
+                if (isStreaming) {
+                    stopStream();
+                }
+            });
+            
+            socket.on('stream_joined', function(data) {
+                console.log('Joined stream room:', data.message);
+            });
+            
+            socket.on('stream_error', function(data) {
+                alert('Stream Error: ' + data.error);
+                updateStatus('Stream Error: ' + data.error, 'disconnected');
+            });
+            
+            socket.on('heartbeat_ack', function(data) {
+                console.log('Heartbeat acknowledged');
+            });
+        }
+        
+        async function startStream(streamType) {
+            try {
+                currentStreamType = streamType;
+                
+                if (streamType === 'camera') {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: { 
+                            facingMode: facingMode,
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        },
+                        audio: false
+                    });
+                } else if (streamType === 'screen') {
+                    stream = await navigator.mediaDevices.getDisplayMedia({
+                        video: {
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        },
+                        audio: false
+                    });
+                }
+                
+                videoElement.srcObject = stream;
+                
+                // Set canvas dimensions
+                canvas.width = 640;
+                canvas.height = 480;
+                
+                isStreaming = true;
+                updateStatus('Streaming ' + streamType, 'streaming');
+                
+                // Start sending frames
+                sendFrames();
+                
+                // Send heartbeat every 30 seconds
+                setInterval(() => {
+                    if (isStreaming && socket.connected) {
+                        socket.emit('stream_heartbeat', { timestamp: Date.now() });
+                    }
+                }, 30000);
+                
+            } catch (error) {
+                console.error('Error starting stream:', error);
+                alert('Failed to start ' + streamType + ': ' + error.message);
+                updateStatus('Failed to start stream', 'disconnected');
+            }
+        }
+        
+        function sendFrames() {
+            if (!isStreaming || !socket.connected) return;
+            
+            // Draw current video frame to canvas
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            
+            // Convert to base64 JPEG
+            const frameData = canvas.toDataURL('image/jpeg', 0.7);
+            
+            // Send frame via WebSocket
+            socket.emit('stream_frame', {
+                frame_data: frameData,
+                stream_type: currentStreamType,
+                timestamp: Date.now()
+            });
+            
+            // Send next frame (adjust FPS as needed - 10 FPS for reasonable bandwidth)
+            setTimeout(sendFrames, 100);
+        }
+        
+        function stopStream() {
+            isStreaming = false;
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            videoElement.srcObject = null;
+            updateStatus('Stream stopped', 'connected');
+        }
+        
+        async function switchCamera() {
+            if (currentStreamType !== 'camera' || !isStreaming) return;
+            
+            facingMode = facingMode === 'user' ? 'environment' : 'user';
+            isMirrored = facingMode === 'user';
+            
+            // Update mirror effect
+            videoElement.style.transform = isMirrored ? 'scaleX(-1)' : 'scaleX(1)';
+            
+            // Stop current stream
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            
+            // Start new stream with different camera
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: facingMode,
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                });
+                
+                videoElement.srcObject = stream;
+                
+            } catch (error) {
+                console.error('Error switching camera:', error);
+                alert('Failed to switch camera: ' + error.message);
+            }
+        }
+        
+        function toggleMirror() {
+            isMirrored = !isMirrored;
+            videoElement.style.transform = isMirrored ? 'scaleX(-1)' : 'scaleX(1)';
+        }
+        
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden && isStreaming) {
+                // Page is hidden, continue streaming but reduce frame rate
+                console.log('Page hidden, continuing stream...');
+            } else if (!document.hidden && isStreaming) {
+                // Page is visible again
+                console.log('Page visible, resuming normal streaming...');
+            }
+        });
+        
+        // Handle beforeunload to clean up
+        window.addEventListener('beforeunload', function() {
+            if (isStreaming) {
+                stopStream();
+            }
+        });
+    </script>
+</body>
+</html>
