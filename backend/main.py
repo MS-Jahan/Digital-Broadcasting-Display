@@ -61,11 +61,16 @@ def load_user(user_id):
     return None
 
 
-class Video:
-    def __init__(self, id, filename, status):
+class PlaylistItem:
+    def __init__(self, id, type, content, status, duration, font_size, text_color, bg_color):
         self.id = id
-        self.filename = filename
+        self.type = type
+        self.content = content
         self.status = status
+        self.duration = duration
+        self.font_size = font_size
+        self.text_color = text_color
+        self.bg_color = bg_color
 
 class User(UserMixin):
     def __init__(self, id, username, password):
@@ -82,12 +87,17 @@ def startup_tasks():
     if not os.path.exists(app.config['VIDEO_FOLDER']):
         os.mkdir(app.config['VIDEO_FOLDER'])
 
-    # Create the videos table if it doesn't exist
+    # Create the playlist_item table if it doesn't exist
     conn.execute('''
-        CREATE TABLE IF NOT EXISTS video (
+        CREATE TABLE IF NOT EXISTS playlist_item (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filename TEXT NOT NULL,
-            status TEXT NOT NULL
+            type TEXT NOT NULL,
+            content TEXT NOT NULL,
+            status TEXT NOT NULL,
+            duration INTEGER,
+            font_size TEXT,
+            text_color TEXT,
+            bg_color TEXT
         )
     ''')
 
@@ -117,9 +127,9 @@ def startup_tasks():
 
     subtitle_entry = Subtitle('')
 
-    # Populate the videos table
+    # Populate the playlist_item table
     with conn:
-        cursor = conn.execute('SELECT filename FROM video')
+        cursor = conn.execute("SELECT content FROM playlist_item WHERE type = 'video'")
         existing_videos = set(row[0] for row in cursor.fetchall())
 
         videos = os.listdir(app.config['VIDEO_FOLDER'])
@@ -128,12 +138,12 @@ def startup_tasks():
         for video in existing_videos:
             if video not in videos:
                 print("[+] Deleting video: " + video)
-                conn.execute('DELETE FROM video WHERE filename = ?', (video,))
+                conn.execute("DELETE FROM playlist_item WHERE content = ? AND type = 'video'", (video,))
 
         for video in videos:
             if video not in existing_videos:
                 print("[+] Adding video: " + video)
-                conn.execute('INSERT INTO video (filename, status) VALUES (?, ?)', (video, 'listed'))
+                conn.execute("INSERT INTO playlist_item (type, content, status) VALUES ('video', ?, 'listed')", (video,))
         
 
 
@@ -151,21 +161,12 @@ def admin():
     return render_template('admin/index.html')
 
 
-@app.route('/all_videos')
+@app.route('/api/playlist_items')
 @login_required
-def all_videos():
-    cursor = conn.execute('SELECT * FROM video')
-    videos = [Video(*row) for row in cursor.fetchall()]
-
-    videos_arr = []
-    unlisted_videos_arr = []
-    for video in videos:
-        if video.status == 'unlisted':
-            unlisted_videos_arr.append({video.id: video.filename})
-        else:
-            videos_arr.append({video.id: video.filename})
-
-    return {"videos": videos_arr, "unlisted_videos": unlisted_videos_arr}
+def all_playlist_items():
+    cursor = conn.execute('SELECT * FROM playlist_item')
+    items = [dict(row) for row in cursor.fetchall()]
+    return {"items": items}
 
 
 @app.route('/videos/<path:filename>')
@@ -213,7 +214,7 @@ def get_subtitle():
         return {"content": subtitle.content}
 
 
-@app.route('/playlist_index_swap', methods=['GET'])
+@app.route('/api/playlist_item/swap', methods=['GET'])
 @login_required
 def pi_swap():
     one = int(request.args.get('one'))
@@ -221,12 +222,12 @@ def pi_swap():
 
     with conn:
         # get one from database
-        one_tuple = list(conn.execute('SELECT * FROM video where id=?', (one,)).fetchone())
-        another_tuple = list(conn.execute('SELECT * FROM video where id=?', (another,)).fetchone())
+        one_tuple = list(conn.execute('SELECT * FROM playlist_item where id=?', (one,)).fetchone())
+        another_tuple = list(conn.execute('SELECT * FROM playlist_item where id=?', (another,)).fetchone())
         
         # delete those entries
-        conn.execute('DELETE FROM video WHERE id=?', (one,))
-        conn.execute('DELETE FROM video WHERE id=?', (another,))
+        conn.execute('DELETE FROM playlist_item WHERE id=?', (one,))
+        conn.execute('DELETE FROM playlist_item WHERE id=?', (another,))
 
         # swap id in tuples
         tmp = one_tuple[0]
@@ -234,77 +235,78 @@ def pi_swap():
         another_tuple[0] = tmp
 
         # insert into database
-        conn.execute('INSERT INTO video (id, filename, status) VALUES (?, ?, ?)', (one_tuple[0], one_tuple[1], one_tuple[2]))
-        conn.execute('INSERT INTO video (id, filename, status) VALUES (?, ?, ?)', (another_tuple[0], another_tuple[1], another_tuple[2]))
+        conn.execute('INSERT INTO playlist_item (id, type, content, status, duration, font_size, text_color, bg_color) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', tuple(one_tuple))
+        conn.execute('INSERT INTO playlist_item (id, type, content, status, duration, font_size, text_color, bg_color) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', tuple(another_tuple))
         
         conn.commit()
 
     return {"message": "success"}
 
 
-@app.route('/make_video_unlisted', methods=['GET'])
+@app.route('/api/playlist_item/unlisted', methods=['GET'])
 @login_required
-def make_video_unlisted():
+def make_item_unlisted():
     try:
-        video_id = int(request.args.get('id'))
+        item_id = int(request.args.get('id'))
 
         with conn:
-            cursor = conn.execute('SELECT * FROM video WHERE id = ?', (video_id,))
+            cursor = conn.execute('SELECT * FROM playlist_item WHERE id = ?', (item_id,))
             row = cursor.fetchone()
 
             if row is None:
-                return {"message": "Invalid video ID"}
+                return {"message": "Invalid item ID"}
 
-            conn.execute('UPDATE video SET status = ? WHERE id = ?', ('unlisted', video_id))
+            conn.execute('UPDATE playlist_item SET status = ? WHERE id = ?', ('unlisted', item_id))
 
         return {"message": "success"}
     except Exception as e:
         return {"message": str(e)}, 400
 
 
-@app.route('/make_video_listed', methods=['GET'])
+@app.route('/api/playlist_item/listed', methods=['GET'])
 @login_required
-def make_video_listed():
+def make_item_listed():
     try:
-        video_id = int(request.args.get('id'))
+        item_id = int(request.args.get('id'))
 
         with conn:
-            cursor = conn.execute('SELECT * FROM video WHERE id = ?', (video_id,))
+            cursor = conn.execute('SELECT * FROM playlist_item WHERE id = ?', (item_id,))
             row = cursor.fetchone()
 
             if row is None:
-                return {"message": "Invalid video ID"}
+                return {"message": "Invalid item ID"}
 
-            conn.execute('UPDATE video SET status = ? WHERE id = ?', ('listed', video_id))
+            conn.execute('UPDATE playlist_item SET status = ? WHERE id = ?', ('listed', item_id))
 
         return {"message": "success"}
     except Exception as e:
         return {"message": str(e)}, 400
 
 
-@app.route('/delete_video', methods=['GET'])
+@app.route('/api/playlist_item/delete', methods=['GET'])
 @login_required
-def delete_video():
+def delete_playlist_item():
     try:
-        video_id = int(request.args.get('id'))
+        item_id = int(request.args.get('id'))
 
         with conn:
-            cursor = conn.execute('SELECT * FROM video WHERE id = ?', (video_id,))
-            row = cursor.fetchone()
+            cursor = conn.execute('SELECT * FROM playlist_item WHERE id = ?', (item_id,))
+            item = cursor.fetchone()
 
-            if row is None:
-                return {"message": "Invalid video ID"}
+            if item is None:
+                return {"message": "Invalid item ID"}
 
-            video = Video(*row)
-            video_path = os.path.join(app.config['VIDEO_FOLDER'], video.filename)
-            os.remove(video_path)
-            conn.execute('DELETE FROM video WHERE id = ?', (video_id,))
+            if item['type'] == 'video':
+                video_path = os.path.join(app.config['VIDEO_FOLDER'], item['content'])
+                os.remove(video_path)
+
+            conn.execute('DELETE FROM playlist_item WHERE id = ?', (item_id,))
 
         return {"message": "success"}
     except Exception as e:
         return {"message": str(e)}, 400
 
-@app.route('/upload_video', methods=['POST'])
+@app.route('/api/playlist_item/upload_video', methods=['POST'])
 @login_required
 def upload_video():
     # check if the post request has the file part
@@ -319,10 +321,62 @@ def upload_video():
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        conn.execute('INSERT INTO video (filename, status) VALUES (?, ?)', (filename, 'listed'))
+        conn.execute("INSERT INTO playlist_item (type, content, status) VALUES ('video', ?, 'listed')", (filename,))
         return {"message": "success"}
     else:
         return {"message": "Invalid file format"}, 400
+
+@app.route('/api/playlist_item/add_notice', methods=['POST'])
+@login_required
+def add_notice():
+    data = request.json
+    content = data.get('content')
+    duration = data.get('duration')
+    font_size = data.get('font_size')
+    text_color = data.get('text_color')
+    bg_color = data.get('bg_color')
+
+    with conn:
+        conn.execute(
+            "INSERT INTO playlist_item (type, content, status, duration, font_size, text_color, bg_color) VALUES ('notice', ?, 'listed', ?, ?, ?, ?)",
+            (content, duration, font_size, text_color, bg_color)
+        )
+        conn.commit()
+
+    return {"message": "success"}
+
+
+@app.route('/api/playlist_item/add_image_notice', methods=['POST'])
+@login_required
+def add_image_notice():
+    # check if the post request has the file part
+    if 'image' not in request.files:
+        return {"message": "No file part"}, 400
+
+    file = request.files['image']
+    # if user does not select file, browser also submit an empty part without filename
+    if file.filename == '':
+        return {"message": "No selected file"}, 400
+
+    if file:
+        filename = secure_filename(file.filename)
+        if not os.path.exists('uploads/images'):
+            os.makedirs('uploads/images')
+        file.save(os.path.join('uploads/images', filename))
+
+        duration = request.form.get('duration')
+
+        with conn:
+            conn.execute(
+                "INSERT INTO playlist_item (type, content, status, duration) VALUES ('image', ?, 'listed', ?)",
+                (filename, duration)
+            )
+            conn.commit()
+
+        return {"message": "success"}
+    else:
+        return {"message": "Invalid file format"}, 400
+
 
 @app.route('/current_video', methods=['GET'])
 @login_required
@@ -354,73 +408,61 @@ def disconnect_request():
     emit('my_response', {'data': 'Disconnected!', 'count': session['receive_count']}, callback=can_disconnect)
 
 
-@socket_.on('next_video', namespace='/video')
+@socket_.on('next_item', namespace='/video')
 @login_required
-def test_message(message):
+def next_item(message):
     global CURRENTLY_PLAYING_VIDEO_NAME
     session['receive_count'] = session.get('receive_count', 0) + 1
-    current_video_index = message['current_video_index']
+    current_item_index = message['current_item_index']
 
     try:
         with conn:
-            cursor = conn.execute('SELECT * FROM video ORDER BY id')
-            videos = [Video(*row) for row in cursor.fetchall()]
+            cursor = conn.execute('SELECT * FROM playlist_item ORDER BY id')
+            items = [dict(row) for row in cursor.fetchall()]
 
-            for video in videos:
-                print(video.filename)
-
-            if len(videos) == 0:
-                raise Exception("No videos in the local store")
+            if len(items) == 0:
+                raise Exception("No items in the local store")
 
             traversing = -1
-            while traversing < len(videos):
+            while traversing < len(items):
                 traversing += 1
-                current_video_index += 1
-                if current_video_index >= len(videos) or current_video_index < 0:
-                    current_video_index = 0
+                current_item_index += 1
+                if current_item_index >= len(items) or current_item_index < 0:
+                    current_item_index = 0
 
-                next_video = videos[current_video_index]
-                if next_video.status != 'unlisted':
-                    emit('next_video', {'video_id': current_video_index, 'video_name': next_video.filename})
-                    socket_.emit('next_video', {'video_id': current_video_index, 'video_name': next_video.filename}, namespace='/admin-video')
-                    CURRENTLY_PLAYING_VIDEO_NAME = next_video.filename
+                next_item = items[current_item_index]
+                if next_item['status'] != 'unlisted':
+                    emit('next_item', {'item': next_item, 'index': current_item_index})
+                    socket_.emit('next_item', {'item': next_item, 'index': current_item_index}, namespace='/admin-video')
+                    if next_item['type'] == 'video':
+                        CURRENTLY_PLAYING_VIDEO_NAME = next_item['content']
                     break
 
     except Exception as e:
         print(traceback.format_exc())
 
 
-@socket_.on('next_video', namespace='/admin-video')
+@socket_.on('admin_play_item', namespace='/admin-video')
 @login_required
-def admin_play_video(message):
+def admin_play_item(message):
     global CURRENTLY_PLAYING_VIDEO_NAME
     session['receive_count'] = session.get('receive_count', 0) + 1
-    current_video_index = message['current_video_index']
+    current_item_index = message['current_item_index']
 
     try:
         with conn:
-            cursor = conn.execute('SELECT * FROM video ORDER BY id')
-            videos = [Video(*row) for row in cursor.fetchall()]
+            cursor = conn.execute('SELECT * FROM playlist_item ORDER BY id')
+            items = [dict(row) for row in cursor.fetchall()]
 
-            for video in videos:
-                print(video.filename)
+            if len(items) == 0:
+                raise Exception("No items in the local store")
 
-            if len(videos) == 0:
-                raise Exception("No videos in the local store")
+            next_item = items[current_item_index]
 
-            traversing = -1
-            while traversing < len(videos):
-                traversing += 1
-                current_video_index += 1
-                if current_video_index >= len(videos) or current_video_index < 0:
-                    current_video_index = 0
-
-                next_video = videos[current_video_index]
-                
-                emit('next_video', {'video_id': current_video_index, 'video_name': next_video.filename})
-                socket_.emit('next_video', {'video_id': current_video_index, 'video_name': next_video.filename}, namespace='/video')
-                CURRENTLY_PLAYING_VIDEO_NAME = next_video.filename
-                break
+            emit('next_item', {'item': next_item, 'index': current_item_index})
+            socket_.emit('next_item', {'item': next_item, 'index': current_item_index}, namespace='/video')
+            if next_item['type'] == 'video':
+                CURRENTLY_PLAYING_VIDEO_NAME = next_item['content']
 
     except Exception as e:
         print(traceback.format_exc())
@@ -476,4 +518,3 @@ if __name__ == '__main__':
     startup_tasks()
     # socket_.run(app, port=8082, debug=True)
     wsgi.server(eventlet.listen(('', 8082)), app)
-
