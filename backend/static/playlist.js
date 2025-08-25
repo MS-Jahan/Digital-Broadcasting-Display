@@ -2,76 +2,41 @@ function move_up(e) {
     console.log(e);
     try {
         current_list_element = e.closest("li");
-        // Get current list element's index
-        var list_items = current_list_element.parentNode.querySelectorAll("li");
-        var current_index = Array.from(list_items).indexOf(current_list_element);
-        var previous_index = current_index - 1;
-        previous_list_element = current_list_element.previousElementSibling;
+        var previous_list_element = current_list_element.previousElementSibling;
 
-        var current_index_data_id = current_list_element.getAttribute("data-video-id");
-        var previous_index_data_id = previous_list_element.getAttribute("data-video-id");
-
+        var current_index_data_id = current_list_element.getAttribute("data-item-id");
+        var previous_index_data_id = previous_list_element.getAttribute("data-item-id");
 
         if (previous_list_element) {
-            var video_status = previous_list_element.getAttribute("video-status");
-            if (video_status !== "unlisted") {
-                // send request to server to swap current_index with previous_index in the playlist
-                fetch(SERVER_URL + `/playlist_index_swap?one=${current_index_data_id}&another=${previous_index_data_id}`).then((response) => {
-                    console.log(response);
-                });
-
-                previous_list_element.style.transform = "translateY(" + current_list_element.offsetHeight + "px)";
-                current_list_element.style.transform = "translateY(-" + previous_list_element.offsetHeight + "px)";
-                setTimeout(function () {
-                    previous_list_element.parentNode.insertBefore(current_list_element, previous_list_element);
-                    previous_list_element.style.transform = "";
-                    current_list_element.style.transform = "";
-                }, 500); // Change the time as per your requirement
-            }
+            fetch(SERVER_URL + `/api/playlist_item/swap?one=${current_index_data_id}&another=${previous_index_data_id}`).then((response) => {
+                console.log(response);
+                get_playlist_items('playlist-ul');
+            });
         }
-        console.log("move_up out");
     } catch (error) {
         console.log(error);
     }
 }
-
 
 function move_down(e) {
     console.log(e);
     try {
         current_list_element = e.closest("li");
+        var next_list_element = current_list_element.nextElementSibling;
 
-        // Get current list element's index
-        var list_items = current_list_element.parentNode.querySelectorAll("li");
-        var current_index = Array.from(list_items).indexOf(current_list_element);
-        var next_index = current_index + 1;
-        next_list_element = current_list_element.nextElementSibling;
-
-        var current_index_data_id = current_list_element.getAttribute("data-video-id");
-        var next_index_data_id = next_list_element.getAttribute("data-video-id");
+        var current_index_data_id = current_list_element.getAttribute("data-item-id");
+        var next_index_data_id = next_list_element.getAttribute("data-item-id");
 
         if (next_list_element) {
-            var video_status = next_list_element.getAttribute("video-status");
-            if (video_status !== "unlisted") {
-                // send request to server to swap current_index with previous_index in the playlist
-                fetch(SERVER_URL + `/playlist_index_swap?one=${current_index_data_id}&another=${next_index_data_id}`).then((response) => {
-                    console.log(response);
-                });
-
-                next_list_element.style.transform = "translateY(-" + current_list_element.offsetHeight + "px)";
-                current_list_element.style.transform = "translateY(" + next_list_element.offsetHeight + "px)";
-                setTimeout(function () {
-                    next_list_element.parentNode.insertBefore(current_list_element, next_list_element.nextSibling);
-                    next_list_element.style.transform = "";
-                    current_list_element.style.transform = "";
-                }, 500); // Change the time as per your requirement
-            }
+            fetch(SERVER_URL + `/api/playlist_item/swap?one=${current_index_data_id}&another=${next_index_data_id}`).then((response) => {
+                console.log(response);
+                get_playlist_items('playlist-ul');
+            });
         }
     } catch (error) {
         console.log(error);
     }
 }
-
 
 function del(e) {
     try {
@@ -87,15 +52,8 @@ function del(e) {
         }).then((result) => {
             if (result.isConfirmed) {
                 const current_list_element = e.closest("li");
-
-                // Get current list element's index
-                var list_items = current_list_element.parentNode.querySelectorAll("li");
-                var current_index = Array.from(list_items).indexOf(current_list_element);
-
-                var current_index_data_id = current_list_element.getAttribute("data-video-id");
-
-                // Send the video ID to the server
-                deleteVideo(current_index_data_id);
+                var item_id = current_list_element.getAttribute("data-item-id");
+                deletePlaylistItem(item_id);
             }
         });
     } catch (error) {
@@ -103,218 +61,133 @@ function del(e) {
     }
 }
 
-function deleteVideo(videoId) {
-    // Make an AJAX request to the server
-    fetch(`/delete_video?id=${videoId}`, {
+function deletePlaylistItem(itemId) {
+    fetch(`/api/playlist_item/delete?id=${itemId}`, {
         method: 'GET'
     })
-        .then(response => response.json())
-        .then(data => {
-            // Handle the server response
-            Swal.fire(
-                'Deleted!',
-                data.message,
-                'success'
-            );
-        })
-        .catch(error => {
-            console.log(error);
-            Swal.fire(
-                'Error',
-                'An error occurred while deleting the video.',
-                'error'
-            );
-        });
+    .then(response => response.json())
+    .then(data => {
+        Swal.fire(
+            'Deleted!',
+            data.message,
+            'success'
+        );
+        get_playlist_items('playlist-ul');
+    })
+    .catch(error => {
+        console.log(error);
+        Swal.fire(
+            'Error',
+            'An error occurred while deleting the item.',
+            'error'
+        );
+    });
 }
 
-
-function play_from_list(e) {
+function play_item_from_list(e) {
     console.log("play clicked")
     try {
         current_list_element = e.closest("li");
-        video_id = Array.from(current_list_element.parentNode.querySelectorAll("li")).indexOf(current_list_element);
-        admin_socket.emit('next_video', { data: 'next_video', current_video_index: video_id-1});
+        item_id = Array.from(current_list_element.parentNode.querySelectorAll("li")).indexOf(current_list_element);
+        admin_socket.emit('admin_play_item', { current_item_index: item_id });
     } catch (error) {
         console.log(error);
     }
 }
 
-function get_videos(target) {
-    fetch(SERVER_URL + "/all_videos", {
-        method: "GET"
-    })
+function get_playlist_items(target) {
+    fetch(SERVER_URL + "/api/playlist_items")
         .then(response => response.json())
         .then(data => {
-            // iterate through data['videos']
             var ul = document.getElementById(target);
             var ul_innerhtml = "";
 
-            if (target === 'videos-ul') {
-                data['videos'].forEach(function (video, index) {
-                    var videoId = Object.keys(video)[0];
-                    var videoFilename = video[videoId];
-                    ul_innerhtml += `<li video-status="listed" class="transition-c mdl-list__item" data-video-id="${videoId}" id="playlist-item-3">
-                        <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;">
-                            <i class="material-icons  mdl-list__item-avatar">person</i>
-                            ${videoFilename}
-                        </span>
-                        <span onclick="play_from_list(this)" class="mdl-list__item-secondary-action"
-                            style="margin-inline: 10px;">
-                            <label class="mdl-button mdl-js-button mdl-button--icon">
-                                <i class="material-icons">play_arrow</i>
-                            </label>
-                        </span>
-                        <span onclick="del(this)" class="mdl-list__item-secondary-action"
-                            style="margin-inline: 10px;">
-                            <label class="mdl-button mdl-js-button mdl-button--icon">
-                                <i class="material-icons">close</i>
-                            </label>
-                        </span>
-                    </li>`;
-                });
+            data.items.forEach(function (item) {
+                let content;
+                if (item.type === 'video') {
+                    content = `<i class="material-icons  mdl-list__item-avatar">movie</i> ${item.content}`;
+                } else if (item.type === 'image') {
+                    content = `<i class="material-icons  mdl-list__item-avatar">image</i> <img src="/uploads/images/${item.content}" width="50">`;
+                } else {
+                    content = `<i class="material-icons  mdl-list__item-avatar">title</i> ${item.content}`;
+                }
 
-                data['unlisted_videos'].forEach(function (video, index) {
-                    var videoId = Object.keys(video)[0];
-                    var videoFilename = video[videoId];
-                    ul_innerhtml += `<li video-status="unlisted" class="transition-c mdl-list__item" data-video-id="${videoId}" id="playlist-item-3">
-                        <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;">
-                            <i class="material-icons  mdl-list__item-avatar">person</i>
-                            ${videoFilename}
-                        </span>
-                        <span class="mdl-list__item-secondary-action"
-                            style="margin-inline: 10px;">
-                            <label class="mdl-button mdl-js-button mdl-button--icon">
-                                <i class="material-icons">play_arrow</i>
-                            </label>
-                        </span>
-                        <span onclick="del(this)" class="mdl-list__item-secondary-action"
-                            style="margin-inline: 10px;">
-                            <label class="mdl-button mdl-js-button mdl-button--icon">
-                                <i class="material-icons">close</i>
-                            </label>
-                        </span>
-                    </li>`;
-                });
-            } else if (target === 'playlist-ul') {
-                data['videos'].forEach(function (video, index) {
-                    var videoId = Object.keys(video)[0];
-                    var videoFilename = video[videoId];
-
-                    ul_innerhtml += `<li video-status="listed" class="transition-c mdl-list__item" data-video-id="${videoId}" id="playlist-item-3">
-                <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;">
-                    <i class="material-icons  mdl-list__item-avatar">person</i>
-                    ${videoFilename}
-                </span>
-                <span onclick="move_up(this)" class="mdl-list__item-secondary-action"
-                    style="margin-inline: 10px;">
-                    <label class="mdl-button mdl-js-button mdl-button--icon">
-                        <i class="material-icons">arrow_upward</i>
-                    </label>
-                </span>
-                <span onclick="move_down(this)" class="mdl-list__item-secondary-action"
-                    style="margin-inline: 10px;">
-                    <label class="mdl-button mdl-js-button mdl-button--icon">
-                        <i class="material-icons">arrow_downward</i>
-                    </label>
-                </span>
-                <span onclick="make_video_unlisted(this)" class="mdl-list__item-secondary-action"
-                    style="margin-inline: 10px;">
-                    <label class="mdl-button mdl-js-button mdl-button--icon">
-                        <i class="material-icons">visibility_off</i>
-                    </label>
-                </span>
-            </li>`;
-                });
-
-                data['unlisted_videos'].forEach(function (video, index) {
-                    var videoId = Object.keys(video)[0];
-                    var videoFilename = video[videoId];
-                    ul_innerhtml += `<li video-status="unlisted" class="transition-c mdl-list__item" data-video-id="${videoId}" id="playlist-item-3">
-                <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;filter: blur(3px);">
-                    <i class="material-icons  mdl-list__item-avatar">person</i>
-                    ${videoFilename}
-                </span>
-                <span style="filter: blur(3px);margin-inline: 10px;" class="mdl-list__item-secondary-action">
-                    <label class="mdl-button mdl-js-button mdl-button--icon">
-                        <i class="material-icons">arrow_upward</i>
-                    </label>
-                </span>
-                <span style="filter: blur(3px);margin-inline: 10px;" class="mdl-list__item-secondary-action">
-                    <label class="mdl-button mdl-js-button mdl-button--icon">
-                        <i class="material-icons">arrow_downward</i>
-                    </label>
-                </span>
-                <span onclick="make_video_listed(this)" class="mdl-list__item-secondary-action"
-                    style="margin-inline: 10px;">
-                    <label class="mdl-button mdl-js-button mdl-button--icon">
-                        <i class="material-icons">visibility</i>
-                    </label>
-                </span>
-            </li>`;
-                });
-            }
-
+                ul_innerhtml += `<li class="transition-c mdl-list__item" data-item-id="${item.id}" data-item-type="${item.type}">
+                    <span class="mdl-list__item-primary-content" style="overflow-wrap: anywhere;">
+                        ${content}
+                    </span>
+                    <span onclick="move_up(this)" class="mdl-list__item-secondary-action" style="margin-inline: 10px;">
+                        <label class="mdl-button mdl-js-button mdl-button--icon"><i class="material-icons">arrow_upward</i></label>
+                    </span>
+                    <span onclick="move_down(this)" class="mdl-list__item-secondary-action" style="margin-inline: 10px;">
+                        <label class="mdl-button mdl-js-button mdl-button--icon"><i class="material-icons">arrow_downward</i></label>
+                    </span>
+                    <span onclick="play_item_from_list(this)" class="mdl-list__item-secondary-action" style="margin-inline: 10px;">
+                        <label class="mdl-button mdl-js-button mdl-button--icon"><i class="material-icons">play_arrow</i></label>
+                    </span>
+                    <span onclick="del(this)" class="mdl-list__item-secondary-action" style="margin-inline: 10px;">
+                        <label class="mdl-button mdl-js-button mdl-button--icon"><i class="material-icons">close</i></label>
+                    </span>
+                </li>`;
+            });
             ul.innerHTML = ul_innerhtml;
-        })
+        });
 }
 
-
-function make_video_unlisted(e) {
-    try {
-        var current_list_element = e.closest("li");
-        current_list_element.setAttribute("video-status", "unlisted");
-        // Get current list element's index
-        var list_items = current_list_element.parentNode.querySelectorAll("li");
-        var current_index = Array.from(list_items).indexOf(current_list_element);
-
-        var current_list_element_data_id = current_list_element.getAttribute("data-video-id");
-
-        // Do something with video_id
-        fetch(SERVER_URL + `/make_video_unlisted?id=${current_list_element_data_id}`).then((response) => {
-            console.log(response);
-        });
-
-        // Make li's first three span elements blur and remove onclick attribute
-        var spans = current_list_element.querySelectorAll("span");
-        for (var i = 0; i < Math.min(3, spans.length); i++) {
-            spans[i].style.filter = "blur(3px)";
-            if (i > 0 && i < spans.length - 1) {
-                spans[i].removeAttribute("onclick");
-            }
+document.getElementById('add-text-notice-button').addEventListener('click', function() {
+    Swal.fire({
+        title: 'Add Text Notice',
+        html:
+            '<input id="swal-input1" class="swal2-input" placeholder="Content">' +
+            '<input id="swal-input2" class="swal2-input" placeholder="Duration (seconds)">' +
+            '<input id="swal-input3" class="swal2-input" placeholder="Font Size (e.g., 24px)">' +
+            '<input id="swal-input4" class="swal2-input" placeholder="Text Color (e.g., #FF0000)">' +
+            '<input id="swal-input5" class="swal2-input" placeholder="Background Color (e.g., rgba(0,0,0,0.5))">',
+        focusConfirm: false,
+        preConfirm: () => {
+            return [
+                document.getElementById('swal-input1').value,
+                document.getElementById('swal-input2').value,
+                document.getElementById('swal-input3').value,
+                document.getElementById('swal-input4').value,
+                document.getElementById('swal-input5').value
+            ]
         }
-        spans[3].setAttribute("onclick", "make_video_listed(this)");
-        spans[3].querySelector("i.material-icons").textContent = "visibility";
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const [content, duration, font_size, text_color, bg_color] = result.value;
+            fetch('/api/playlist_item/add_notice', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, duration, font_size, text_color, bg_color })
+            }).then(() => get_playlist_items('playlist-ul'));
+        }
+    });
+});
 
-
-    } catch (error) {
-        console.log(error);
-    }
-}
-
-function make_video_listed(e) {
-    try {
-        var current_list_element = e.closest("li");
-        current_list_element.setAttribute("video-status", "listed");
-        // Get current list element's index
-        var list_items = current_list_element.parentNode.querySelectorAll("li");
-        var current_index = Array.from(list_items).indexOf(current_list_element);
-        var current_index_data_id = current_list_element.getAttribute("data-video-id");
-
-        // Do something with video_id
-        fetch(SERVER_URL + `/make_video_listed?id=${current_index_data_id}`).then((response) => {
-            console.log(response);
-        });
-
-        // Make li's first three span elements remove blur and re-add onclick attribute
-        var spans = current_list_element.querySelectorAll("span");
-        spans[0].style.filter = "";
-        spans[1].setAttribute("onclick", "move_up(this)");
-        spans[1].style.filter = "";
-        spans[2].setAttribute("onclick", "move_down(this)");
-        spans[2].style.filter = "";
-        spans[3].setAttribute("onclick", "make_video_unlisted(this)");
-        spans[3].querySelector("i.material-icons").textContent = "visibility_off";
-    } catch (error) {
-        console.log(error);
-    }
-}
+document.getElementById('add-image-notice-button').addEventListener('click', function() {
+    Swal.fire({
+        title: 'Add Image Notice',
+        html:
+            '<input type="file" id="swal-input1" class="swal2-file">' +
+            '<input id="swal-input2" class="swal2-input" placeholder="Duration (seconds)">',
+        focusConfirm: false,
+        preConfirm: () => {
+            return [
+                document.getElementById('swal-input1').files[0],
+                document.getElementById('swal-input2').value
+            ]
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const [image, duration] = result.value;
+            const formData = new FormData();
+            formData.append('image', image);
+            formData.append('duration', duration);
+            fetch('/api/playlist_item/add_image_notice', {
+                method: 'POST',
+                body: formData
+            }).then(() => get_playlist_items('playlist-ul'));
+        }
+    });
+});
