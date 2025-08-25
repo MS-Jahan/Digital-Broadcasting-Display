@@ -1,0 +1,121 @@
+# Digital Broadcasting Display - Docker Ignore File
+
+# Documentation
+*.md
+docs/
+WARP.md
+
+# Git
+.git/
+.gitignore
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+backend/logs/
+backend/app.log
+
+# Database files (will be handled by volumes)
+*.sqlite
+*.sqlite3
+*.db
+backend/database.sqlite
+database.sqlite
+
+# Cache and temporary files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Virtual environments
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# Node.js (if any frontend build tools are added)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# Upload directories (will be handled by volumes)
+backend/videos/
+backend/uploads/
+backend/static/logos/
+backend/static/token_backgrounds/
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Docker files (except Dockerfile itself)
+docker-compose.override.yml
+docker-compose.local.yml
+
+# SSL certificates
+ssl/
+*.pem
+*.key
+*.crt
+*.csr
+
+# Local development files
+local_store.json
+backend/local_store.json
+
+# Windows specific files
+ist_startup.bat
+ist_screen_startup_backup.ps1
+backend/ist_startup.bat
+backend/ist_screen_startup_backup.ps1
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Jupyter notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Development helpers
+backend/.cph/
+backend/helpers.py.bak
+backend/index.html

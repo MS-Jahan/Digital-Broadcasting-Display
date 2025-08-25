@@ -1,0 +1,145 @@
+# Digital Broadcasting Display - Docker Compose Configuration
+version: '3.8'
+
+services:
+  # Main application service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_DATE: ${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}
+        VERSION: ${VERSION:-latest}
+        VCS_REF: ${VCS_REF:-$(git rev-parse --short HEAD || echo 'unknown')}
+    image: digital-broadcasting-display:${VERSION:-latest}
+    container_name: dbd-app
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-8082}:8082"
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - SECRET_KEY=${SECRET_KEY:-secret!}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+      - DATABASE_PATH=${DATABASE_PATH:-/app/data/database.sqlite}
+      - UPLOAD_FOLDER=${UPLOAD_FOLDER:-videos}
+      - DEBUG=${DEBUG:-false}
+    volumes:
+      # Persistent data
+      - app_data:/app/data
+      - videos_data:/app/videos
+      - uploads_data:/app/uploads
+      - logos_data:/app/static/logos
+      - token_backgrounds_data:/app/static/token_backgrounds
+      - logs_data:/app/logs
+      # Configuration (optional)
+      - ./config:/app/config:ro
+    networks:
+      - dbd_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - db_backup
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dbd.rule=Host(`${DOMAIN:-localhost}`)"
+      - "traefik.http.services.dbd.loadbalancer.server.port=8082"
+
+  # Database backup service (runs periodic backups)
+  db_backup:
+    image: alpine:3.18
+    container_name: dbd-backup
+    restart: unless-stopped
+    environment:
+      - BACKUP_INTERVAL=${BACKUP_INTERVAL:-86400} # 24 hours
+      - BACKUP_RETENTION=${BACKUP_RETENTION:-7} # Keep 7 backups
+    volumes:
+      - app_data:/data:ro
+      - backup_data:/backups
+      - ./docker/backup.sh:/backup.sh:ro
+    command: >
+      sh -c "
+        while true; do
+          /backup.sh
+          sleep $$BACKUP_INTERVAL
+        done
+      "
+    networks:
+      - dbd_network
+
+  # Nginx reverse proxy (optional, for production)
+  nginx:
+    image: nginx:alpine
+    container_name: dbd-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    networks:
+      - dbd_network
+    depends_on:
+      - app
+    profiles:
+      - production
+
+  # Watchtower for automatic updates (optional)
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: dbd-watchtower
+    restart: unless-stopped
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=${WATCHTOWER_INTERVAL:-3600}
+      - WATCHTOWER_INCLUDE_STOPPED=true
+      - WATCHTOWER_NOTIFICATIONS=${WATCHTOWER_NOTIFICATIONS:-email}
+      - WATCHTOWER_NOTIFICATION_EMAIL_FROM=${EMAIL_FROM}
+      - WATCHTOWER_NOTIFICATION_EMAIL_TO=${EMAIL_TO}
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER=${EMAIL_SERVER}
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PORT=${EMAIL_PORT:-587}
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_USER=${EMAIL_USER}
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PASSWORD=${EMAIL_PASSWORD}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    profiles:
+      - auto-update
+
+# Named volumes for persistent data
+volumes:
+  app_data:
+    driver: local
+    name: dbd_app_data
+  videos_data:
+    driver: local
+    name: dbd_videos
+  uploads_data:
+    driver: local
+    name: dbd_uploads
+  logos_data:
+    driver: local
+    name: dbd_logos
+  token_backgrounds_data:
+    driver: local
+    name: dbd_token_backgrounds
+  logs_data:
+    driver: local
+    name: dbd_logs
+  backup_data:
+    driver: local
+    name: dbd_backups
+
+# Custom network
+networks:
+  dbd_network:
+    driver: bridge
+    name: dbd_network
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
