@@ -7,6 +7,30 @@
 
 Digital Broadcasting Display is a **comprehensive Flask-based digital signage system** designed for managing and displaying multimedia content on digital displays. It features advanced capabilities including live video streaming, token counter systems, remote device management, and real-time content control.
 
+<!-- screenshot: docs/screenshots/hero.png -->
+
+## Links
+
+- **Repo:** https://github.com/MS-Jahan/Digital-Broadcasting-Display
+- **Live demo:** self-hosted only — after Docker start, open [http://localhost:8082](http://localhost:8082)
+
+## Tech Stack
+
+**Backend:** Python 3.11+, Flask, Flask-SocketIO, Flask-Login, Pony ORM · **Infra:** Docker, Docker Compose · **Realtime:** Socket.IO / Eventlet
+
+## Dependencies
+
+Primary Python packages (see `backend/requirements.txt` for pinned versions):
+
+- Flask, Flask-Cors, Flask-Login, Flask-Session, Flask-SocketIO
+- Pony ORM, Eventlet, python-socketio / python-engineio
+
+Install locally with:
+
+```bash
+pip install -r backend/requirements.txt
+```
+
 ## 🚀 Quick Start with Docker
 
 ### Prerequisites
