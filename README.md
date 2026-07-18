@@ -7,7 +7,7 @@
 
 Digital Broadcasting Display is a **comprehensive Flask-based digital signage system** designed for managing and displaying multimedia content on digital displays. It features advanced capabilities including live video streaming, token counter systems, remote device management, and real-time content control.
 
-<!-- screenshot: docs/screenshots/hero.png -->
+![Project overview](docs/screenshots/hero.png)
 
 ## Links
 
